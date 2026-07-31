@@ -112,3 +112,141 @@ export function getDatesInRange(from: string, to: string): string[] {
   }
   return dates
 }
+
+// ── Hoteles ───────────────────────────────────────────────────────────────────
+
+export type AmadeusHotel = {
+  hotelId: string
+  name: string
+  rating?: string
+  cityCode: string
+}
+
+export type AmadeusHotelOffer = {
+  id: string
+  hotel: {
+    hotelId: string
+    name: string
+    rating?: string
+    cityCode: string
+    amenities?: string[]
+    description?: { text: string }
+  }
+  offers: {
+    id: string
+    checkInDate: string
+    checkOutDate: string
+    boardType?: string
+    price: { total: string; currency: string; base?: string }
+  }[]
+  available: boolean
+}
+
+export async function getHotelsByCity(cityCode: string): Promise<AmadeusHotel[]> {
+  const token = await getAccessToken()
+
+  const query = new URLSearchParams({
+    cityCode: cityCode.toUpperCase(),
+    radius: '10',
+    radiusUnit: 'KM',
+    hotelSource: 'ALL',
+  })
+
+  const res = await fetch(`${BASE_URL}/v1/reference-data/locations/hotels/by-city?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (res.status === 400 || res.status === 404) return []
+  if (!res.ok) throw new Error(`Amadeus hotels/city error: ${res.status}`)
+
+  const data = (await res.json()) as { data?: AmadeusHotel[] }
+  return data.data ?? []
+}
+
+type SearchHotelParams = {
+  hotelIds: string[]
+  checkInDate: string
+  checkOutDate: string
+  adults: number
+  roomQuantity: number
+}
+
+export async function searchHotelOffers(params: SearchHotelParams): Promise<AmadeusHotelOffer[]> {
+  const token = await getAccessToken()
+
+  const ids = params.hotelIds.slice(0, 20).join(',')
+  const query = new URLSearchParams({
+    hotelIds: ids,
+    checkInDate: params.checkInDate,
+    checkOutDate: params.checkOutDate,
+    adults: String(params.adults),
+    roomQuantity: String(params.roomQuantity),
+    currency: 'USD',
+    bestRateOnly: 'true',
+  })
+
+  const res = await fetch(`${BASE_URL}/v3/shopping/hotel-offers?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (res.status === 400 || res.status === 404) return []
+  if (!res.ok) throw new Error(`Amadeus hotel-offers error: ${res.status}`)
+
+  const data = (await res.json()) as { data?: AmadeusHotelOffer[] }
+  return (data.data ?? []).filter((h) => h.available && h.offers.length > 0)
+}
+
+// ── Traslados ─────────────────────────────────────────────────────────────────
+
+export type AmadeusTransferOffer = {
+  id: string
+  transferType: string
+  start: { dateTime: string; locationCode: string }
+  end: { address?: { line: string; cityName: string; countryCode: string }; name?: string }
+  vehicle: { code: string; description: string; seats?: { count: number }[] }
+  serviceProvider: { name: string; logoUrl?: string }
+  quotation: { monetaryAmount: string; currencyCode: string }
+  distance?: { value: number; unit: string }
+  duration?: string
+}
+
+type SearchTransferParams = {
+  startLocationCode: string
+  endAddressLine: string
+  endCityName: string
+  endCountryCode: string
+  endName: string
+  startDateTime: string
+  passengers: number
+  transferType: string
+}
+
+export async function searchTransferOffers(params: SearchTransferParams): Promise<AmadeusTransferOffer[]> {
+  const token = await getAccessToken()
+
+  const body = {
+    startLocationCode: params.startLocationCode,
+    endAddressLine: params.endAddressLine,
+    endCityName: params.endCityName,
+    endCountryCode: params.endCountryCode,
+    endName: params.endName,
+    startDateTime: params.startDateTime,
+    passengers: params.passengers,
+    transferType: params.transferType,
+  }
+
+  const res = await fetch(`${BASE_URL}/v1/shopping/transfer-offers`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (res.status === 400 || res.status === 404) return []
+  if (!res.ok) throw new Error(`Amadeus transfer error: ${res.status}`)
+
+  const data = (await res.json()) as { data?: AmadeusTransferOffer[] }
+  return data.data ?? []
+}

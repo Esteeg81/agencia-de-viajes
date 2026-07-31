@@ -68,3 +68,107 @@ export type SearchResult = {
   searchedDates: string[]
   currency: string
 }
+
+// ── Hoteles ──────────────────────────────────────────────────────────────────
+
+export type HotelOffer = {
+  id: string
+  hotelId: string
+  hotelName: string
+  rating?: string
+  cityCode: string
+  price: {
+    total: string
+    currency: string
+    perNight: string
+  }
+  checkInDate: string
+  checkOutDate: string
+  nights: number
+  boardType?: string
+  description?: string
+  amenities?: string[]
+}
+
+export type HotelSearchParams = {
+  cityCode: string
+  checkInDate: string
+  checkOutDate: string
+  adults: number
+  rooms: number
+}
+
+export type HotelSearchResult = {
+  offers: HotelOffer[]
+  cheapest: HotelOffer | null
+  currency: string
+}
+
+// ── Traslados ─────────────────────────────────────────────────────────────────
+
+export type TransferType = 'PRIVATE' | 'SHARED' | 'TAXI'
+
+export type TransferOffer = {
+  id: string
+  transferType: TransferType
+  vehicle: {
+    code: string
+    description: string
+    seats?: number
+  }
+  serviceProvider: {
+    name: string
+  }
+  departure: {
+    locationCode: string
+    dateTime: string
+  }
+  arrival: {
+    name: string
+    cityName: string
+  }
+  price: {
+    total: string
+    currency: string
+  }
+  duration?: string
+  distance?: { value: number; unit: string }
+}
+
+export type TransferSearchParams = {
+  startLocationCode: string
+  endName: string
+  endCityName: string
+  endCountryCode: string
+  startDateTime: string
+  passengers: number
+  transferType: TransferType
+}
+
+export type TransferSearchResult = {
+  offers: TransferOffer[]
+  cheapest: TransferOffer | null
+  currency: string
+}
+
+// ── Modos de búsqueda ─────────────────────────────────────────────────────────
+
+export type SearchMode = 'flights' | 'hotels' | 'transfers'
+
+export const COUNTRY_CODES: { label: string; value: string }[] = [
+  { label: 'Argentina', value: 'AR' },
+  { label: 'Brasil', value: 'BR' },
+  { label: 'Chile', value: 'CL' },
+  { label: 'Uruguay', value: 'UY' },
+  { label: 'Paraguay', value: 'PY' },
+  { label: 'Bolivia', value: 'BO' },
+  { label: 'Perú', value: 'PE' },
+  { label: 'Colombia', value: 'CO' },
+  { label: 'México', value: 'MX' },
+  { label: 'Estados Unidos', value: 'US' },
+  { label: 'España', value: 'ES' },
+  { label: 'Francia', value: 'FR' },
+  { label: 'Italia', value: 'IT' },
+  { label: 'Alemania', value: 'DE' },
+  { label: 'Otro', value: 'OT' },
+]
