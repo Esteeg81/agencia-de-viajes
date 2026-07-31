@@ -1,45 +1,32 @@
 # Agencia de Viajes
 
-Buscador de vuelos con comparación de precios, fechas flexibles y clasificación de aerolíneas.
+Buscador de vuelos y hoteles con comparación de precios, fechas flexibles y clasificación de aerolíneas.
+Datos en tiempo real via **SerpAPI** (Google Flights + Google Hotels).
 
 ## Características
 
-- Búsqueda por destino (código IATA o ciudad)
-- Rango de fechas flexible de salida y regreso
-- Salida desde: Santa Fe, Rosario, Aeroparque (AEP) o Ezeiza (EZE)
-- Opciones de pasajeros: 1 adulto / 2 adultos / 2 adultos + 2 menores
-- Comparativa de precios (mínimo, promedio, máximo)
-- Indicador de aerolínea **Low Cost** vs **Tradicional**
-- Resultados ordenados por precio
-- Datos en tiempo real via **Amadeus API**
+- **Vuelos**: origen (SFN, ROS, AEP, EZE), destino libre, rango de fechas, pasajeros, indicador Low Cost / Tradicional
+- **Hoteles**: búsqueda por ciudad o destino, check-in / check-out, adultos y habitaciones
+- Comparativa de precios (mínimo, promedio, máximo) en ambas secciones
+- Traslados: próximamente
 
 ## Setup
 
-### 1. Clonar y configurar variables de entorno
+### 1. Obtener API key gratuita de SerpAPI
+
+1. Ir a [serpapi.com](https://serpapi.com)
+2. Crear cuenta gratuita → obtenés **100 búsquedas/mes** sin tarjeta
+3. Copiar la API Key del dashboard
+
+### 2. Configurar variables de entorno
 
 ```bash
-# Frontend
-cp .env.example .env
-
-# Backend
 cd server
 cp .env.example .env
+# Editar .env y pegar la SERPAPI_KEY
 ```
 
-### 2. Obtener API keys gratuitas de Amadeus
-
-1. Ir a [developers.amadeus.com](https://developers.amadeus.com)
-2. Crear cuenta gratuita
-3. Crear una nueva app → obtenés `Client ID` y `Client Secret`
-4. Completar en `server/.env`:
-
-```
-AMADEUS_CLIENT_ID=tu_client_id
-AMADEUS_CLIENT_SECRET=tu_client_secret
-AMADEUS_ENV=test
-```
-
-### 3. Instalar dependencias y correr
+### 3. Instalar y correr
 
 ```bash
 # Frontend (desde raíz)
@@ -52,19 +39,14 @@ npm install
 npm run dev
 ```
 
-El frontend corre en `http://localhost:5173` y el backend en `http://localhost:3001`.
-
-## Aerolíneas Low Cost en Argentina
-
-Las siguientes aerolíneas se marcan como **Low Cost** (mayor restricción para cambios/cancelaciones):
-- **FO** – Flybondi
-- **JA** – JetSMART
-- **W4** – (otros operadores low cost)
-
-Las demás (Aerolíneas Argentinas, LATAM, Copa, Iberia, etc.) se clasifican como **Tradicionales**.
+Frontend: `http://localhost:5173` · Backend: `http://localhost:3001`
 
 ## Stack
 
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS 4
 - **Backend**: Node.js + Express + TypeScript
-- **API**: Amadeus Flight Offers Search v2
+- **API**: SerpAPI — Google Flights y Google Hotels
+
+## Aerolíneas Low Cost detectadas
+
+Flybondi, JetSMART, Spirit, Frontier, Ryanair, EasyJet, Vueling, Sky Airline, Viva Air, Wizz Air, Volaris, VivaAerobus

@@ -2,7 +2,7 @@ import type { HotelSearchParams, HotelSearchResult } from '../types/travel'
 
 export async function searchHotels(params: HotelSearchParams): Promise<HotelSearchResult> {
   const query = new URLSearchParams({
-    cityCode: params.cityCode,
+    destination: params.destination,
     checkInDate: params.checkInDate,
     checkOutDate: params.checkOutDate,
     adults: String(params.adults),

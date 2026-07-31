@@ -11,7 +11,7 @@ const today = new Date().toISOString().split('T')[0]
 const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 
 export function HotelSearchForm({ onSearch, loading }: Props) {
-  const [cityCode, setCityCode] = useState('')
+  const [destination, setDestination] = useState('')
   const [checkInDate, setCheckInDate] = useState(tomorrow)
   const [checkOutDate, setCheckOutDate] = useState('')
   const [adults, setAdults] = useState(2)
@@ -22,8 +22,8 @@ export function HotelSearchForm({ onSearch, loading }: Props) {
     e.preventDefault()
     setError('')
 
-    if (!cityCode.trim()) {
-      setError('Ingresá el código IATA de la ciudad (ej: BUE, MDZ, MIA)')
+    if (!destination.trim()) {
+      setError('Ingresá el destino (ciudad o país)')
       return
     }
     if (!checkOutDate) {
@@ -35,29 +35,24 @@ export function HotelSearchForm({ onSearch, loading }: Props) {
       return
     }
 
-    onSearch({ cityCode: cityCode.trim().toUpperCase(), checkInDate, checkOutDate, adults, rooms })
+    onSearch({ destination: destination.trim(), checkInDate, checkOutDate, adults, rooms })
   }
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 space-y-5">
-      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
-        <strong>Tip:</strong> Usá el código IATA de ciudad: BUE (Buenos Aires), MDZ (Mendoza), BRC (Bariloche),
-        MIA (Miami), MAD (Madrid), PAR (París)…
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Destino */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             <MapPin className="inline w-4 h-4 mr-1 text-amber-500" />
-            Ciudad destino (código IATA)
+            Ciudad o destino
           </label>
           <input
             type="text"
-            value={cityCode}
-            onChange={(e) => setCityCode(e.target.value)}
-            placeholder="Ej: BUE, MDZ, MIA"
-            maxLength={3}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder="Ej: Bariloche, Buenos Aires, Miami, Madrid"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
         </div>
 

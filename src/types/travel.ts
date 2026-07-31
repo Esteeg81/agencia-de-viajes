@@ -91,7 +91,7 @@ export type HotelOffer = {
 }
 
 export type HotelSearchParams = {
-  cityCode: string
+  destination: string
   checkInDate: string
   checkOutDate: string
   adults: number

@@ -1,6 +1,13 @@
 import { Router } from 'express'
-import { searchFlightOffers, classifyAirline, getDatesInRange } from '../lib/amadeus.js'
-import type { AmadeusFlightOffer } from '../lib/amadeus.js'
+import {
+  searchFlights,
+  classifyAirlineName,
+  airlineToIata,
+  minutesToIsoDuration,
+  serpTimeToIso,
+  getDatesInRange,
+} from '../lib/serpapi.js'
+import type { SerpFlight } from '../lib/serpapi.js'
 
 const router = Router()
 
@@ -10,32 +17,34 @@ const PASSENGER_MAP: Record<string, { adults: number; children: number }> = {
   '2_adults_2_children': { adults: 2, children: 2 },
 }
 
-function transformOffer(raw: AmadeusFlightOffer, currency: string) {
-  const airlineType = classifyAirline(raw.validatingAirlineCodes)
-  const totalStops = raw.itineraries.reduce((acc, itin) => acc + Math.max(0, itin.segments.length - 1), 0)
+let offerCounter = 0
+
+function transformFlight(raw: SerpFlight, currency: string, adults: number) {
+  const mainAirline = raw.flights[0]?.airline ?? 'Desconocida'
+  const airlineCode = airlineToIata(mainAirline)
+  const airlineType = classifyAirlineName(mainAirline)
+  const stops = Math.max(0, raw.flights.length - 1)
+
+  const segments = raw.flights.map((seg) => ({
+    departure: { iataCode: seg.departure_airport.id, at: serpTimeToIso(seg.departure_airport.time) },
+    arrival: { iataCode: seg.arrival_airport.id, at: serpTimeToIso(seg.arrival_airport.time) },
+    carrierCode: airlineToIata(seg.airline),
+    airlineName: seg.airline,
+    number: seg.flight_number,
+    duration: minutesToIsoDuration(seg.duration),
+  }))
+
+  const total = raw.price.toFixed(2)
+  const perAdult = (raw.price / adults).toFixed(2)
 
   return {
-    id: raw.id,
-    price: {
-      total: raw.price.total,
-      currency,
-      perAdult: raw.price.perAdult?.total ?? raw.price.total,
-    },
-    itineraries: raw.itineraries.map((itin) => ({
-      duration: itin.duration,
-      segments: itin.segments.map((seg) => ({
-        departure: seg.departure,
-        arrival: seg.arrival,
-        carrierCode: seg.carrierCode,
-        airlineName: seg.carrierCode,
-        number: seg.number,
-        duration: seg.duration,
-      })),
-    })),
-    validatingAirlineCodes: raw.validatingAirlineCodes,
+    id: `flight-${++offerCounter}-${raw.price}`,
+    price: { total, currency, perAdult },
+    itineraries: [{ duration: minutesToIsoDuration(raw.total_duration), segments }],
+    validatingAirlineCodes: [airlineCode],
     airlineType,
-    numberOfStops: totalStops,
-    oneWay: raw.oneWay,
+    numberOfStops: stops,
+    oneWay: raw.type !== 'Round trip',
   }
 }
 
@@ -56,53 +65,46 @@ router.get('/search', async (req, res) => {
     return
   }
 
-  const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']
+  const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']!
   const departureDates = getDatesInRange(departureFrom, departureTo)
-  const returnDates =
-    tripType === 'roundtrip' && returnFrom && returnTo
-      ? getDatesInRange(returnFrom, returnTo)
-      : undefined
+  const returnDate =
+    tripType === 'roundtrip' && returnFrom && returnTo ? returnFrom : undefined
+
+  const isRoundTrip = tripType === 'roundtrip' && !!returnDate
 
   try {
-    const allOffers: ReturnType<typeof transformOffer>[] = []
+    const allOffers: ReturnType<typeof transformFlight>[] = []
     const searchedDates: string[] = []
 
     for (const depDate of departureDates) {
-      const retDate = returnDates ? returnDates[0] : undefined
-      const raw = await searchFlightOffers({
-        originLocationCode: origin,
-        destinationLocationCode: destination,
-        departureDate: depDate,
-        returnDate: retDate,
+      const raw = await searchFlights({
+        departure_id: origin,
+        arrival_id: destination,
+        outbound_date: depDate,
+        return_date: isRoundTrip ? returnDate : undefined,
         adults: pax.adults,
         children: pax.children,
-        max: 5,
+        type: isRoundTrip ? 1 : 2,
       })
 
       searchedDates.push(depDate)
-      for (const rawOffer of raw) {
-        const currency = rawOffer.price.currency ?? 'USD'
-        allOffers.push(transformOffer(rawOffer, currency))
+      for (const r of raw) {
+        allOffers.push(transformFlight(r, 'USD', pax.adults))
       }
     }
 
     if (allOffers.length === 0) {
-      res.json({ offers: [], cheapest: null, searchedDates, currency: 'ARS' })
+      res.json({ offers: [], cheapest: null, searchedDates, currency: 'USD' })
       return
     }
 
     allOffers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
 
-    const currency = allOffers[0]?.price.currency ?? 'ARS'
-    const uniqueById = allOffers.filter(
-      (o, i, arr) => arr.findIndex((x) => x.id === o.id) === i
-    )
-
     res.json({
-      offers: uniqueById,
-      cheapest: uniqueById[0] ?? null,
+      offers: allOffers,
+      cheapest: allOffers[0] ?? null,
       searchedDates,
-      currency,
+      currency: 'USD',
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error interno'

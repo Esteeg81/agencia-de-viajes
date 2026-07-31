@@ -1,17 +1,9 @@
-import { Star, BedDouble, Coffee, CheckCircle } from 'lucide-react'
+import { Star, BedDouble, CheckCircle, ExternalLink } from 'lucide-react'
 import type { HotelOffer } from '../types/travel'
 
 type Props = {
-  offer: HotelOffer
+  offer: HotelOffer & { imageUrl?: string; link?: string; overallRating?: number; reviewCount?: number }
   isCheapest?: boolean
-}
-
-const BOARD_LABELS: Record<string, string> = {
-  ROOM_ONLY: 'Solo habitación',
-  BREAKFAST: 'Con desayuno',
-  HALF_BOARD: 'Media pensión',
-  FULL_BOARD: 'Pensión completa',
-  ALL_INCLUSIVE: 'Todo incluido',
 }
 
 function formatDate(d: string) {
@@ -36,31 +28,43 @@ export function HotelCard({ offer, isCheapest }: Props) {
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-gray-800 text-base leading-snug">{offer.hotelName}</h3>
+          <div className="flex items-start gap-3">
+            {offer.imageUrl && (
+              <img
+                src={offer.imageUrl}
+                alt={offer.hotelName}
+                className="w-16 h-16 object-cover rounded-lg shrink-0"
+              />
+            )}
+            <div className="min-w-0">
+              <h3 className="font-bold text-gray-800 text-base leading-snug">{offer.hotelName}</h3>
 
-          {stars > 0 && (
-            <div className="flex items-center gap-0.5 mt-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3.5 h-3.5 ${i < stars ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`}
-                />
-              ))}
-              <span className="text-xs text-gray-400 ml-1">{offer.rating} estrellas</span>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {stars > 0 && (
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-3.5 h-3.5 ${i < stars ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`}
+                      />
+                    ))}
+                  </div>
+                )}
+                {offer.overallRating && (
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                    ★ {offer.overallRating.toFixed(1)}
+                    {offer.reviewCount ? ` (${offer.reviewCount.toLocaleString('es-AR')} reseñas)` : ''}
+                  </span>
+                )}
+              </div>
             </div>
-          )}
+          </div>
 
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-3">
             <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
               <BedDouble className="w-3 h-3" />
               {offer.nights} noche{offer.nights !== 1 ? 's' : ''}
             </span>
-            {offer.boardType && (
-              <span className="flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
-                <Coffee className="w-3 h-3" />
-                {BOARD_LABELS[offer.boardType] ?? offer.boardType}
-              </span>
-            )}
           </div>
 
           <div className="mt-2 text-xs text-gray-500">
@@ -82,15 +86,26 @@ export function HotelCard({ offer, isCheapest }: Props) {
               ))}
             </div>
           )}
+
+          {offer.link && (
+            <a
+              href={offer.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-2"
+            >
+              Ver en Google Hotels <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
 
         <div className="text-right shrink-0">
           <div className="text-2xl font-bold text-gray-900">
-            {offer.price.currency} {Number(offer.price.total).toLocaleString('es-AR')}
+            USD {Number(offer.price.total).toLocaleString('es-AR')}
           </div>
           <div className="text-xs text-gray-400">precio total</div>
           <div className="text-sm text-amber-600 font-medium mt-1">
-            {offer.price.currency} {Number(offer.price.perNight).toLocaleString('es-AR')}
+            USD {Number(offer.price.perNight).toLocaleString('es-AR')}
             <span className="text-xs text-gray-400 font-normal"> / noche</span>
           </div>
         </div>
