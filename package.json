@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:all": "npm run build && npm install --prefix server && npm run build --prefix server",
-    "start": "NODE_ENV=production node server/dist/index.js",
+    "build": "tsc -b && vite build && npm install --prefix server",
+    "start": "NODE_ENV=production ./server/node_modules/.bin/tsx server/src/index.ts",
     "preview": "vite preview"
   },
   "dependencies": {
