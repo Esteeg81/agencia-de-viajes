@@ -78,11 +78,28 @@ router.get('/search', async (req, res) => {
       all_inclusive: wantsAllInclusive,
     })
 
-    const offers = raw
+    let offers = raw
       .filter((h) => h.total_rate?.extracted_lowest || h.rate_per_night?.extracted_lowest)
       .map((h) => transformHotel(h, checkInDate, checkOutDate))
-    // El filtro all-inclusive lo aplica Google Hotels vía la query "hoteles todo incluido en..."
-    // No filtramos por keywords en los resultados para no eliminar hoteles válidos
+
+    if (wantsAllInclusive) {
+      const AI_KEYWORDS = [
+        'all inclusive', 'all-inclusive', 'todo incluido', 'todo-incluido',
+        'tudo incluído', 'tudo incluido', 'all in', 'all-in',
+        'pensión completa', 'pension completa', 'resort',
+      ]
+      const filtered = offers.filter((o) => {
+        const haystack = [
+          ...(o.amenities ?? []),
+          o.description ?? '',
+          o.hotelName,
+        ].join(' ').toLowerCase()
+        return AI_KEYWORDS.some((kw) => haystack.includes(kw))
+      })
+      // Si el filtro de keywords encuentra resultados, úsalos; si no, devuelve todo lo que Google
+      // encontró con la query "hoteles todo incluido en..." (ya está pre-filtrado por Google)
+      if (filtered.length > 0) offers = filtered
+    }
 
     offers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
 
