@@ -66,13 +66,15 @@ router.get('/search', async (req, res) => {
   }
 
   const wantsAllInclusive = allInclusive === 'true'
+  // Google Hotels solo acepta "adults" para capacidad — sumamos niños para buscar habitaciones con lugar para todos
+  const totalOccupants = Number(adults) + childrenAgeList.length
 
   try {
     const raw = await searchHotels({
       destination,
       check_in_date: checkInDate,
       check_out_date: checkOutDate,
-      adults: Number(adults),
+      adults: totalOccupants,
       all_inclusive: wantsAllInclusive,
     })
 
