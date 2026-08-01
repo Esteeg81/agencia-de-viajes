@@ -3,8 +3,8 @@ services:
     name: agencia-de-viajes
     env: node
     plan: free
-    buildCommand: npm install && npm run build:all
-    startCommand: npm run start
+    buildCommand: npm install && npm run build && npm install --prefix server && npm run build --prefix server
+    startCommand: NODE_ENV=production node server/dist/index.js
     envVars:
       - key: NODE_ENV
         value: production

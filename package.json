@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:all": "npm run build && cd server && npm install && npm run build",
+    "build:all": "npm run build && npm install --prefix server && npm run build --prefix server",
     "start": "NODE_ENV=production node server/dist/index.js",
     "preview": "vite preview"
   },
