@@ -73,8 +73,6 @@ router.get('/search', async (req, res) => {
       check_in_date: checkInDate,
       check_out_date: checkOutDate,
       adults: Number(adults),
-      children: childrenAgeList.length,
-      rooms: Number(rooms),
       all_inclusive: wantsAllInclusive,
     })
 

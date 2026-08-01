@@ -166,8 +166,6 @@ type SearchHotelsParams = {
   check_in_date: string
   check_out_date: string
   adults: number
-  children?: number
-  rooms: number
   all_inclusive?: boolean
 }
 
@@ -184,15 +182,10 @@ export async function searchHotels(params: SearchHotelsParams): Promise<SerpHote
     check_in_date: params.check_in_date,
     check_out_date: params.check_out_date,
     adults: String(params.adults),
-    rooms: String(params.rooms),
     currency: 'USD',
     hl: 'es',
     api_key: API_KEY,
   })
-
-  if (params.children && params.children > 0) {
-    query.set('children', String(params.children))
-  }
 
   const res = await fetch(`${BASE_URL}?${query}`)
   if (!res.ok) throw new Error(`SerpAPI error: ${res.status}`)
