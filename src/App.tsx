@@ -63,9 +63,17 @@ export default function App() {
     }
   }
 
+  function derivePassengers(adults: number, childrenCount: number): PassengerOption {
+    if (childrenCount > 0) return '2_adults_2_children'
+    if (adults <= 1) return '1_adult'
+    return '2_adults'
+  }
+
   function handleLinkToFlights(destination: string, checkIn: string, checkOut: string) {
     const origin = lastFlightSearch?.origin ?? 'EZE'
-    const passengers: PassengerOption = lastFlightSearch?.passengers ?? '2_adults'
+    const passengers: PassengerOption = lastHotelSearch
+      ? derivePassengers(lastHotelSearch.adults, lastHotelSearch.children.length)
+      : (lastFlightSearch?.passengers ?? '2_adults')
     const preset: FlightPreset = {
       destination,
       origin,
