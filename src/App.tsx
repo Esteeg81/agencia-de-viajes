@@ -82,7 +82,7 @@ export default function App() {
       : (lastFlightSearch?.passengers ?? '2_adults')
 
     const todayStr = new Date().toISOString().split('T')[0]
-    const FLEX_DAYS = 3
+    const FLEX_DAYS = 5
     const depFrom = shiftDate(checkIn, -FLEX_DAYS) < todayStr ? todayStr : shiftDate(checkIn, -FLEX_DAYS)
     const depTo   = shiftDate(checkIn,  FLEX_DAYS)
     const retFrom = shiftDate(checkOut, -FLEX_DAYS)
