@@ -129,10 +129,10 @@ export async function searchFlights(params: SearchFlightsParams): Promise<SerpFl
   if (params.children && params.children > 0) query.set('children', String(params.children))
 
   const res = await fetch(`${BASE_URL}?${query}`)
-  if (!res.ok) throw new Error(`SerpAPI error: ${res.status}`)
-
   const data = (await res.json()) as SerpFlightsResponse
-  if (data.error) throw new Error(data.error)
+  if (!res.ok || data.error) {
+    throw new Error(data.error ?? `SerpAPI error: ${res.status}`)
+  }
 
   return [...(data.best_flights ?? []), ...(data.other_flights ?? [])]
 }

@@ -17,6 +17,89 @@ const PASSENGER_MAP: Record<string, { adults: number; children: number }> = {
   '2_adults_2_children': { adults: 2, children: 2 },
 }
 
+// Mapa de nombres de ciudad/país → código IATA de aeropuerto principal
+const CITY_TO_IATA: Record<string, string> = {
+  // Argentina
+  'buenos aires': 'BUE', 'cordoba': 'COR', 'córdoba': 'COR',
+  'rosario': 'ROS', 'mendoza': 'MDZ', 'bariloche': 'BRC',
+  'salta': 'SLA', 'tucuman': 'TUC', 'tucumán': 'TUC',
+  'mar del plata': 'MDQ', 'iguazu': 'IGR', 'iguazú': 'IGR',
+  'neuquen': 'NQN', 'neuquén': 'NQN', 'santa fe': 'SFN',
+  'jujuy': 'JUJ', 'posadas': 'PSS', 'ushuaia': 'USH',
+  'resistencia': 'RES', 'comodoro rivadavia': 'CRD', 'puerto madryn': 'PMY',
+  'san luis': 'LUQ', 'villa mercedes': 'VME', 'la rioja': 'IRJ',
+  'catamarca': 'CTC', 'san juan': 'UAQ', 'viedma': 'VDM',
+  // Brasil
+  'sao paulo': 'GRU', 'são paulo': 'GRU', 'rio de janeiro': 'GIG',
+  'rio': 'GIG', 'recife': 'REC', 'salvador': 'SSA',
+  'florianopolis': 'FLN', 'florianópolis': 'FLN', 'fortaleza': 'FOR',
+  'curitiba': 'CWB', 'brasilia': 'BSB', 'brasília': 'BSB',
+  'belo horizonte': 'CNF', 'manaus': 'MAO', 'natal': 'NAT',
+  'porto alegre': 'POA', 'foz do iguacu': 'IGU', 'foz do iguaçu': 'IGU',
+  'maceio': 'MCZ', 'maceió': 'MCZ', 'belem': 'BEL', 'belém': 'BEL',
+  // Chile
+  'santiago': 'SCL', 'antofagasta': 'ANF', 'valparaíso': 'VAP',
+  // Peru
+  'lima': 'LIM', 'cusco': 'CUZ', 'cuzco': 'CUZ', 'arequipa': 'AQP',
+  // Colombia
+  'bogota': 'BOG', 'bogotá': 'BOG', 'cartagena': 'CTG',
+  'medellin': 'MDE', 'medellín': 'MDE', 'cali': 'CLO',
+  // Ecuador
+  'quito': 'UIO', 'guayaquil': 'GYE',
+  // Bolivia
+  'la paz': 'LPB', 'santa cruz': 'VVI', 'cochabamba': 'CBB',
+  // Paraguay
+  'asuncion': 'ASU', 'asunción': 'ASU',
+  // Uruguay
+  'montevideo': 'MVD', 'punta del este': 'PDP',
+  // Venezuela
+  'caracas': 'CCS',
+  // México
+  'cancun': 'CUN', 'cancún': 'CUN', 'mexico city': 'MEX',
+  'ciudad de mexico': 'MEX', 'ciudad de méxico': 'MEX',
+  'guadalajara': 'GDL', 'monterrey': 'MTY', 'los cabos': 'SJD',
+  'puerto vallarta': 'PVR', 'mazatlan': 'MZT',
+  // Caribe
+  'punta cana': 'PUJ', 'santo domingo': 'SDQ',
+  'la habana': 'HAV', 'habana': 'HAV', 'havana': 'HAV',
+  'cuba': 'HAV', 'cancun': 'CUN',
+  // Centroamérica
+  'panama': 'PTY', 'panamá': 'PTY', 'san jose': 'SJO', 'san josé': 'SJO',
+  // USA
+  'miami': 'MIA', 'new york': 'JFK', 'nueva york': 'JFK',
+  'los angeles': 'LAX', 'orlando': 'MCO', 'chicago': 'ORD',
+  'houston': 'IAH', 'dallas': 'DFW', 'atlanta': 'ATL',
+  'washington': 'IAD', 'san francisco': 'SFO', 'boston': 'BOS',
+  'las vegas': 'LAS', 'seattle': 'SEA', 'denver': 'DEN',
+  // Europa
+  'madrid': 'MAD', 'barcelona': 'BCN', 'paris': 'CDG',
+  'london': 'LHR', 'londres': 'LHR', 'amsterdam': 'AMS',
+  'frankfurt': 'FRA', 'roma': 'FCO', 'rome': 'FCO',
+  'milan': 'MXP', 'milán': 'MXP', 'zurich': 'ZRH', 'zürich': 'ZRH',
+  'lisboa': 'LIS', 'lisbon': 'LIS', 'brussels': 'BRU', 'bruselas': 'BRU',
+  'vienna': 'VIE', 'viena': 'VIE', 'berlin': 'BER', 'berlín': 'BER',
+  'munich': 'MUC', 'múnich': 'MUC', 'warsaw': 'WAW', 'varsovia': 'WAW',
+  'praga': 'PRG', 'prague': 'PRG', 'budapest': 'BUD', 'bucarest': 'OTP',
+  'copenhague': 'CPH', 'stockholm': 'ARN', 'oslo': 'OSL', 'helsinki': 'HEL',
+  'atenas': 'ATH', 'athens': 'ATH', 'dubrovnik': 'DBV', 'dubai': 'DXB',
+  // Medio Oriente
+  'dubai': 'DXB', 'abu dhabi': 'AUH', 'istanbul': 'IST',
+  'estambul': 'IST', 'doha': 'DOH', 'tel aviv': 'TLV',
+  // Asia
+  'tokyo': 'NRT', 'tokio': 'NRT', 'beijing': 'PEK', 'pekin': 'PEK',
+  'hong kong': 'HKG', 'bangkok': 'BKK', 'singapore': 'SIN',
+  'singapur': 'SIN', 'seoul': 'ICN', 'seul': 'ICN',
+  'mumbai': 'BOM', 'delhi': 'DEL', 'bali': 'DPS',
+  // Oceanía
+  'sydney': 'SYD', 'melbourne': 'MEL', 'auckland': 'AKL',
+}
+
+function resolveAirportCode(input: string): string {
+  const trimmed = input.trim()
+  if (/^[A-Z]{2,3}$/.test(trimmed)) return trimmed
+  return CITY_TO_IATA[trimmed.toLowerCase()] ?? trimmed
+}
+
 let offerCounter = 0
 
 function transformFlight(raw: SerpFlight, currency: string, adults: number) {
@@ -65,6 +148,8 @@ router.get('/search', async (req, res) => {
     return
   }
 
+  const arrivalId = resolveAirportCode(destination)
+  const departureId = resolveAirportCode(origin)
   const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']!
   const departureDates = getDatesInRange(departureFrom, departureTo)
   const returnDate =
@@ -78,8 +163,8 @@ router.get('/search', async (req, res) => {
 
     for (const depDate of departureDates) {
       const raw = await searchFlights({
-        departure_id: origin,
-        arrival_id: destination,
+        departure_id: departureId,
+        arrival_id: arrivalId,
         outbound_date: depDate,
         return_date: isRoundTrip ? returnDate : undefined,
         adults: pax.adults,
