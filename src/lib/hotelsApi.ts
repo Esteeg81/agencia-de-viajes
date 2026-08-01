@@ -11,6 +11,10 @@ export async function searchHotels(params: HotelSearchParams): Promise<HotelSear
     allInclusive: String(params.allInclusive),
   })
 
+  if (params.children.length > 0) {
+    query.set('childrenAges', params.children.join(','))
+  }
+
   const res = await fetch(`/api/hotels/search?${query}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Error desconocido' }))

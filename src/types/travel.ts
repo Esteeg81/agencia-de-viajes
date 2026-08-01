@@ -96,6 +96,7 @@ export type HotelSearchParams = {
   checkOutDate: string
   nights: number
   adults: number
+  children: number[]   // array of child ages, e.g. [5, 8]
   rooms: number
   allInclusive: boolean
 }

@@ -48,7 +48,12 @@ router.get('/search', async (req, res) => {
     adults = '1',
     rooms = '1',
     allInclusive = 'false',
+    childrenAges = '',
   } = req.query as Record<string, string>
+
+  const childrenAgeList = childrenAges
+    ? childrenAges.split(',').map(Number).filter((n) => !isNaN(n))
+    : []
 
   if (!destination || !checkInDate || !checkOutDate) {
     res.status(400).json({ message: 'Faltan parámetros: destination, checkInDate, checkOutDate' })
@@ -68,6 +73,7 @@ router.get('/search', async (req, res) => {
       check_in_date: checkInDate,
       check_out_date: checkOutDate,
       adults: Number(adults),
+      children: childrenAgeList.length,
       rooms: Number(rooms),
       all_inclusive: wantsAllInclusive,
     })
