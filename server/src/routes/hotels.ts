@@ -47,6 +47,7 @@ router.get('/search', async (req, res) => {
     checkOutDate,
     adults = '1',
     rooms = '1',
+    allInclusive = 'false',
   } = req.query as Record<string, string>
 
   if (!destination || !checkInDate || !checkOutDate) {
@@ -59,6 +60,8 @@ router.get('/search', async (req, res) => {
     return
   }
 
+  const wantsAllInclusive = allInclusive === 'true'
+
   try {
     const raw = await searchHotels({
       destination,
@@ -66,11 +69,24 @@ router.get('/search', async (req, res) => {
       check_out_date: checkOutDate,
       adults: Number(adults),
       rooms: Number(rooms),
+      all_inclusive: wantsAllInclusive,
     })
 
-    const offers = raw
+    let offers = raw
       .filter((h) => h.total_rate?.extracted_lowest || h.rate_per_night?.extracted_lowest)
       .map((h) => transformHotel(h, checkInDate, checkOutDate))
+
+    if (wantsAllInclusive) {
+      const AI_KEYWORDS = ['all inclusive', 'todo incluido', 'all-inclusive', 'todo-incluido']
+      offers = offers.filter((o) => {
+        const haystack = [
+          ...(o.amenities ?? []),
+          o.description ?? '',
+          o.hotelName,
+        ].join(' ').toLowerCase()
+        return AI_KEYWORDS.some((kw) => haystack.includes(kw))
+      })
+    }
 
     offers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
 

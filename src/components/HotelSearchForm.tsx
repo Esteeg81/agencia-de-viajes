@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, MapPin, Calendar, Users, BedDouble } from 'lucide-react'
+import { Search, MapPin, Calendar, Users, BedDouble, Moon, Star } from 'lucide-react'
 import type { HotelSearchParams } from '../types/travel'
 
 type Props = {
@@ -7,16 +7,27 @@ type Props = {
   loading: boolean
 }
 
+const NIGHT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 21]
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
 const today = new Date().toISOString().split('T')[0]
-const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+const tomorrow = addDays(today, 1)
 
 export function HotelSearchForm({ onSearch, loading }: Props) {
   const [destination, setDestination] = useState('')
   const [checkInDate, setCheckInDate] = useState(tomorrow)
-  const [checkOutDate, setCheckOutDate] = useState('')
+  const [nights, setNights] = useState(7)
   const [adults, setAdults] = useState(2)
   const [rooms, setRooms] = useState(1)
+  const [allInclusive, setAllInclusive] = useState(false)
   const [error, setError] = useState('')
+
+  const checkOutDate = addDays(checkInDate, nights)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,16 +37,16 @@ export function HotelSearchForm({ onSearch, loading }: Props) {
       setError('Ingresá el destino (ciudad o país)')
       return
     }
-    if (!checkOutDate) {
-      setError('Seleccioná la fecha de check-out')
-      return
-    }
-    if (checkInDate >= checkOutDate) {
-      setError('El check-out debe ser posterior al check-in')
-      return
-    }
 
-    onSearch({ destination: destination.trim(), checkInDate, checkOutDate, adults, rooms })
+    onSearch({
+      destination: destination.trim(),
+      checkInDate,
+      checkOutDate,
+      nights,
+      adults,
+      rooms,
+      allInclusive,
+    })
   }
 
   return (
@@ -106,18 +117,43 @@ export function HotelSearchForm({ onSearch, loading }: Props) {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Calendar className="inline w-4 h-4 mr-1 text-green-500" />
-            Check-out
+            <Moon className="inline w-4 h-4 mr-1 text-indigo-500" />
+            Noches
           </label>
-          <input
-            type="date"
-            value={checkOutDate}
-            min={checkInDate}
-            onChange={(e) => setCheckOutDate(e.target.value)}
+          <select
+            value={nights}
+            onChange={(e) => setNights(Number(e.target.value))}
             className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-          />
+          >
+            {NIGHT_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n} noche{n > 1 ? 's' : ''}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Check-out: {checkOutDate}</p>
         </div>
       </div>
+
+      {/* All Inclusive */}
+      <label className="flex items-center gap-3 cursor-pointer select-none">
+        <div className="relative">
+          <input
+            type="checkbox"
+            checked={allInclusive}
+            onChange={(e) => setAllInclusive(e.target.checked)}
+            className="sr-only"
+          />
+          <div
+            className={`w-11 h-6 rounded-full transition-colors ${allInclusive ? 'bg-amber-500' : 'bg-gray-200'}`}
+          />
+          <div
+            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${allInclusive ? 'translate-x-5' : 'translate-x-0'}`}
+          />
+        </div>
+        <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+          <Star className="w-4 h-4 text-amber-500" />
+          Solo All Inclusive / Todo Incluido
+        </span>
+      </label>
 
       {error && (
         <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>

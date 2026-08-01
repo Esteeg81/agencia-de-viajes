@@ -94,8 +94,10 @@ export type HotelSearchParams = {
   destination: string
   checkInDate: string
   checkOutDate: string
+  nights: number
   adults: number
   rooms: number
+  allInclusive: boolean
 }
 
 export type HotelSearchResult = {

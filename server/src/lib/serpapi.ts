@@ -167,14 +167,19 @@ type SearchHotelsParams = {
   check_out_date: string
   adults: number
   rooms: number
+  all_inclusive?: boolean
 }
 
 export async function searchHotels(params: SearchHotelsParams): Promise<SerpHotel[]> {
   if (!API_KEY) throw new Error('Falta SERPAPI_KEY en las variables de entorno del servidor')
 
+  const queryText = params.all_inclusive
+    ? `hoteles todo incluido en ${params.destination}`
+    : `hoteles en ${params.destination}`
+
   const query = new URLSearchParams({
     engine: 'google_hotels',
-    q: `hoteles en ${params.destination}`,
+    q: queryText,
     check_in_date: params.check_in_date,
     check_out_date: params.check_out_date,
     adults: String(params.adults),

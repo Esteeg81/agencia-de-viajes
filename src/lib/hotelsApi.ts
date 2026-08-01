@@ -5,8 +5,10 @@ export async function searchHotels(params: HotelSearchParams): Promise<HotelSear
     destination: params.destination,
     checkInDate: params.checkInDate,
     checkOutDate: params.checkOutDate,
+    nights: String(params.nights),
     adults: String(params.adults),
     rooms: String(params.rooms),
+    allInclusive: String(params.allInclusive),
   })
 
   const res = await fetch(`/api/hotels/search?${query}`)
