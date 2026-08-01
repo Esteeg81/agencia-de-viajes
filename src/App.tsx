@@ -69,18 +69,32 @@ export default function App() {
     return '2_adults'
   }
 
+  function shiftDate(dateStr: string, days: number): string {
+    const d = new Date(dateStr)
+    d.setDate(d.getDate() + days)
+    return d.toISOString().split('T')[0]
+  }
+
   function handleLinkToFlights(destination: string, checkIn: string, checkOut: string) {
     const origin = lastFlightSearch?.origin ?? 'EZE'
     const passengers: PassengerOption = lastHotelSearch
       ? derivePassengers(lastHotelSearch.adults, lastHotelSearch.children.length)
       : (lastFlightSearch?.passengers ?? '2_adults')
+
+    const todayStr = new Date().toISOString().split('T')[0]
+    const FLEX_DAYS = 3
+    const depFrom = shiftDate(checkIn, -FLEX_DAYS) < todayStr ? todayStr : shiftDate(checkIn, -FLEX_DAYS)
+    const depTo   = shiftDate(checkIn,  FLEX_DAYS)
+    const retFrom = shiftDate(checkOut, -FLEX_DAYS)
+    const retTo   = shiftDate(checkOut,  FLEX_DAYS)
+
     const preset: FlightPreset = {
       destination,
       origin,
-      departureFrom: checkIn,
-      departureTo: checkIn,
-      returnFrom: checkOut,
-      returnTo: checkOut,
+      departureFrom: depFrom,
+      departureTo:   depTo,
+      returnFrom:    retFrom,
+      returnTo:      retTo,
       passengers,
     }
     setFlightPreset(preset)
