@@ -10,7 +10,7 @@ import { searchHotels } from './lib/hotelsApi'
 import type {
   SearchParams, SearchResult,
   HotelSearchParams, HotelSearchResult,
-  SearchMode,
+  SearchMode, FlightPreset, PassengerOption,
 } from './types/travel'
 
 type TabConfig = { id: SearchMode; label: string; icon: React.ReactNode; activeColor: string }
@@ -28,6 +28,7 @@ export default function App() {
   const [flightResult, setFlightResult] = useState<SearchResult | null>(null)
   const [flightError, setFlightError] = useState<string | null>(null)
   const [lastFlightSearch, setLastFlightSearch] = useState<SearchParams | null>(null)
+  const [flightPreset, setFlightPreset] = useState<FlightPreset | null>(null)
 
   const [hotelLoading, setHotelLoading] = useState(false)
   const [hotelResult, setHotelResult] = useState<HotelSearchResult | null>(null)
@@ -60,6 +61,24 @@ export default function App() {
     } finally {
       setHotelLoading(false)
     }
+  }
+
+  function handleLinkToFlights(destination: string, checkIn: string, checkOut: string) {
+    const origin = lastFlightSearch?.origin ?? 'EZE'
+    const passengers: PassengerOption = lastFlightSearch?.passengers ?? '2_adults'
+    const preset: FlightPreset = {
+      destination,
+      origin,
+      departureFrom: checkIn,
+      departureTo: checkIn,
+      returnFrom: checkOut,
+      returnTo: checkOut,
+      passengers,
+    }
+    setFlightPreset(preset)
+    setFlightResult(null)
+    setFlightError(null)
+    setMode('flights')
   }
 
   const showHero = !flightResult && !hotelResult && !flightLoading && !hotelLoading
@@ -110,7 +129,13 @@ export default function App() {
         )}
 
         {/* Formularios */}
-        {mode === 'flights'   && <SearchForm onSearch={handleFlightSearch} loading={flightLoading} />}
+        {mode === 'flights' && (
+          <SearchForm
+            onSearch={handleFlightSearch}
+            loading={flightLoading}
+            preset={flightPreset}
+          />
+        )}
         {mode === 'hotels'    && <HotelSearchForm onSearch={handleHotelSearch} loading={hotelLoading} />}
         {mode === 'transfers' && <TransferSearchForm />}
 
@@ -146,7 +171,10 @@ export default function App() {
               <h3 className="text-lg font-semibold text-gray-700">
                 Vuelos: <span className="text-blue-600">{lastFlightSearch.origin} → {lastFlightSearch.destination}</span>
               </h3>
-              <button onClick={() => setFlightResult(null)} className="text-sm text-gray-400 hover:text-gray-600 underline">
+              <button
+                onClick={() => { setFlightResult(null); setFlightPreset(null) }}
+                className="text-sm text-gray-400 hover:text-gray-600 underline"
+              >
                 Nueva búsqueda
               </button>
             </div>
@@ -165,7 +193,11 @@ export default function App() {
                 Nueva búsqueda
               </button>
             </div>
-            <HotelResultsList result={hotelResult} />
+            <HotelResultsList
+              result={hotelResult}
+              destination={lastHotelSearch.destination}
+              onLinkToFlights={handleLinkToFlights}
+            />
           </div>
         )}
       </main>

@@ -153,6 +153,18 @@ export type TransferSearchResult = {
   currency: string
 }
 
+// ── Preset vuelo desde hotel ──────────────────────────────────────────────────
+
+export type FlightPreset = {
+  destination: string
+  origin: string
+  departureFrom: string
+  departureTo: string
+  returnFrom: string
+  returnTo: string
+  passengers: PassengerOption
+}
+
 // ── Modos de búsqueda ─────────────────────────────────────────────────────────
 
 export type SearchMode = 'flights' | 'hotels' | 'transfers'

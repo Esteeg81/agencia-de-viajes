@@ -4,16 +4,18 @@ import { HotelCard } from './HotelCard'
 
 type Props = {
   result: HotelSearchResult
+  destination?: string
+  onLinkToFlights?: (destination: string, checkIn: string, checkOut: string) => void
 }
 
-export function HotelResultsList({ result }: Props) {
+export function HotelResultsList({ result, destination = '', onLinkToFlights }: Props) {
   const { offers, cheapest, currency } = result
 
   if (offers.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <p className="text-lg font-medium">No se encontraron hoteles</p>
-        <p className="text-sm mt-1">Probá con otro código de ciudad o fechas diferentes</p>
+        <p className="text-sm mt-1">Probá con otro destino o fechas diferentes</p>
       </div>
     )
   }
@@ -67,6 +69,11 @@ export function HotelResultsList({ result }: Props) {
             key={offer.id}
             offer={offer}
             isCheapest={cheapest?.id === offer.id}
+            onLinkToFlights={
+              onLinkToFlights
+                ? () => onLinkToFlights(destination, offer.checkInDate, offer.checkOutDate)
+                : undefined
+            }
           />
         ))}
       </div>

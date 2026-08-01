@@ -1,16 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, MapPin, Calendar, Users, ArrowLeftRight } from 'lucide-react'
 import { ORIGINS, PASSENGER_OPTIONS } from '../types/travel'
-import type { SearchParams, PassengerOption } from '../types/travel'
+import type { SearchParams, PassengerOption, FlightPreset } from '../types/travel'
 
 type Props = {
   onSearch: (params: SearchParams) => void
   loading: boolean
+  preset?: FlightPreset | null
 }
 
 const today = new Date().toISOString().split('T')[0]
 
-export function SearchForm({ onSearch, loading }: Props) {
+export function SearchForm({ onSearch, loading, preset }: Props) {
   const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip')
   const [origin, setOrigin] = useState(ORIGINS[2].iata)
   const [destination, setDestination] = useState('')
@@ -20,6 +21,31 @@ export function SearchForm({ onSearch, loading }: Props) {
   const [returnTo, setReturnTo] = useState('')
   const [passengers, setPassengers] = useState<PassengerOption>('1_adult')
   const [error, setError] = useState('')
+
+  // When a preset arrives from the hotel tab, populate the form and auto-search
+  useEffect(() => {
+    if (!preset) return
+    setTripType('roundtrip')
+    setOrigin(preset.origin)
+    setDestination(preset.destination)
+    setDepartureFrom(preset.departureFrom)
+    setDepartureTo(preset.departureTo)
+    setReturnFrom(preset.returnFrom)
+    setReturnTo(preset.returnTo)
+    setPassengers(preset.passengers)
+    setError('')
+    onSearch({
+      origin: preset.origin,
+      destination: preset.destination,
+      departureFrom: preset.departureFrom,
+      departureTo: preset.departureTo,
+      returnFrom: preset.returnFrom,
+      returnTo: preset.returnTo,
+      passengers: preset.passengers,
+      tripType: 'roundtrip',
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,7 +70,7 @@ export function SearchForm({ onSearch, loading }: Props) {
 
     onSearch({
       origin,
-      destination: destination.trim().toUpperCase(),
+      destination: destination.trim(),
       departureFrom,
       departureTo,
       returnFrom: tripType === 'roundtrip' ? returnFrom : undefined,
@@ -104,7 +130,7 @@ export function SearchForm({ onSearch, loading }: Props) {
             type="text"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
-            placeholder="Ej: BRC, MDZ, MIA, MAD"
+            placeholder="Ej: Recife, Miami, BRC, MAD"
             className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>

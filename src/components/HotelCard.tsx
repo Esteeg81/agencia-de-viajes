@@ -1,16 +1,17 @@
-import { Star, BedDouble, CheckCircle, ExternalLink } from 'lucide-react'
+import { Star, BedDouble, CheckCircle, ExternalLink, Plane } from 'lucide-react'
 import type { HotelOffer } from '../types/travel'
 
 type Props = {
   offer: HotelOffer & { imageUrl?: string; link?: string; overallRating?: number; reviewCount?: number }
   isCheapest?: boolean
+  onLinkToFlights?: () => void
 }
 
 function formatDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export function HotelCard({ offer, isCheapest }: Props) {
+export function HotelCard({ offer, isCheapest, onLinkToFlights }: Props) {
   const stars = Number(offer.rating)
 
   return (
@@ -87,16 +88,27 @@ export function HotelCard({ offer, isCheapest }: Props) {
             </div>
           )}
 
-          {offer.link && (
-            <a
-              href={offer.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-2"
-            >
-              Ver en Google Hotels <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
+          <div className="flex flex-wrap items-center gap-3 mt-3">
+            {offer.link && (
+              <a
+                href={offer.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
+              >
+                Ver en Google Hotels <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            {onLinkToFlights && (
+              <button
+                onClick={onLinkToFlights}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-full transition-colors"
+              >
+                <Plane className="w-3 h-3" />
+                Buscar vuelos para estas fechas
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="text-right shrink-0">
