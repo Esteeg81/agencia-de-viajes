@@ -184,6 +184,7 @@ export async function searchHotels(params: SearchHotelsParams): Promise<SerpHote
     adults: String(params.adults),
     currency: 'USD',
     hl: 'es',
+    num: '40',
     api_key: API_KEY,
   })
 
