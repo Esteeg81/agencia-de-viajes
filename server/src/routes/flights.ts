@@ -17,9 +17,13 @@ const PASSENGER_MAP: Record<string, { adults: number; children: number }> = {
   '2_adults_2_children': { adults: 2, children: 2 },
 }
 
+// Aeropuertos argentinos para búsqueda con fallback
+const ARGENTINA_AIRPORTS = ['EZE', 'AEP', 'ROS', 'SFN']
+
 // Mapa de nombres de ciudad/país → código IATA de aeropuerto principal
+// Para destinos turísticos sin aeropuerto propio se usa el más cercano
 const CITY_TO_IATA: Record<string, string> = {
-  // Argentina
+  // Argentina – ciudades principales
   'buenos aires': 'BUE', 'cordoba': 'COR', 'córdoba': 'COR',
   'rosario': 'ROS', 'mendoza': 'MDZ', 'bariloche': 'BRC',
   'salta': 'SLA', 'tucuman': 'TUC', 'tucumán': 'TUC',
@@ -29,7 +33,13 @@ const CITY_TO_IATA: Record<string, string> = {
   'resistencia': 'RES', 'comodoro rivadavia': 'CRD', 'puerto madryn': 'PMY',
   'san luis': 'LUQ', 'villa mercedes': 'VME', 'la rioja': 'IRJ',
   'catamarca': 'CTC', 'san juan': 'UAQ', 'viedma': 'VDM',
-  // Brasil
+  // Argentina – destinos turísticos sin aeropuerto propio
+  'el calafate': 'FTE',
+  'villa carlos paz': 'COR',      // Aeropuerto Córdoba (~1h)
+  'san martin de los andes': 'CPC',
+  'san martín de los andes': 'CPC',
+  'puerto iguazu': 'IGR', 'puerto iguazú': 'IGR',
+  // Brasil – ciudades principales
   'sao paulo': 'GRU', 'são paulo': 'GRU', 'rio de janeiro': 'GIG',
   'rio': 'GIG', 'recife': 'REC', 'salvador': 'SSA',
   'florianopolis': 'FLN', 'florianópolis': 'FLN', 'fortaleza': 'FOR',
@@ -37,15 +47,45 @@ const CITY_TO_IATA: Record<string, string> = {
   'belo horizonte': 'CNF', 'manaus': 'MAO', 'natal': 'NAT',
   'porto alegre': 'POA', 'foz do iguacu': 'IGU', 'foz do iguaçu': 'IGU',
   'maceio': 'MCZ', 'maceió': 'MCZ', 'belem': 'BEL', 'belém': 'BEL',
-  // Chile
+  'campo grande': 'CGR', 'cuiaba': 'CGB', 'cuiabá': 'CGB',
+  'boa vista': 'BVB', 'teresina': 'THE',
+  'sao luis': 'SLZ', 'são luís': 'SLZ', 'sao luís': 'SLZ',
+  'aracaju': 'AJU', 'joao pessoa': 'JPA', 'joão pessoa': 'JPA',
+  // Brasil – destinos turísticos sin aeropuerto propio
+  'porto de galinhas': 'REC',     // Aeropuerto Recife (~1h)
+  'porto seguro': 'BPS',
+  'arraial d\'ajuda': 'BPS',      // Aeropuerto Porto Seguro (~30min)
+  'arraial d ajuda': 'BPS',
+  'trancoso': 'BPS',              // Aeropuerto Porto Seguro (~1h)
+  'ilheus': 'IOS', 'ilhéus': 'IOS',
+  'itacare': 'IOS', 'itacaré': 'IOS',  // Aeropuerto Ilhéus (~1h)
+  'jericoacoara': 'JJD',          // Aeropuerto Jericoacoara (pequeño, con conexiones)
+  'fernando de noronha': 'FEN',
+  'lencois maranhenses': 'SLZ',   // Aeropuerto São Luís (~4h)
+  'lençóis maranhenses': 'SLZ',
+  'bonito': 'BYO',                // Aeropuerto Bonito
+  'alter do chao': 'STM', 'alter do chão': 'STM',  // Aeropuerto Santarém
+  'paraty': 'GIG',                // Aeropuerto Galeão Rio (~4h)
+  'buzios': 'GIG', 'búzios': 'GIG',     // Aeropuerto Galeão Rio
+  'gramado': 'CXJ',               // Aeropuerto Caxias do Sul (~2h)
+  'serra gaucha': 'CXJ', 'serra gaúcha': 'CXJ',
+  // Chile – ciudades principales
   'santiago': 'SCL', 'antofagasta': 'ANF', 'valparaíso': 'VAP',
+  // Chile – destinos turísticos
+  'vina del mar': 'SCL', 'viña del mar': 'SCL',
+  'pucon': 'ZCO', 'pucón': 'ZCO',         // Aeropuerto Temuco (~2h)
+  'torres del paine': 'PUQ',              // Aeropuerto Punta Arenas (~5h)
+  'puerto natales': 'PUQ',
   // Peru
   'lima': 'LIM', 'cusco': 'CUZ', 'cuzco': 'CUZ', 'arequipa': 'AQP',
+  'machu picchu': 'CUZ',                  // Aeropuerto Cusco (~3h)
   // Colombia
   'bogota': 'BOG', 'bogotá': 'BOG', 'cartagena': 'CTG',
   'medellin': 'MDE', 'medellín': 'MDE', 'cali': 'CLO',
+  'santa marta': 'SMR',
   // Ecuador
   'quito': 'UIO', 'guayaquil': 'GYE',
+  'galapagos': 'GPS', 'galápagos': 'GPS',
   // Bolivia
   'la paz': 'LPB', 'santa cruz': 'VVI', 'cochabamba': 'CBB',
   // Paraguay
@@ -53,16 +93,18 @@ const CITY_TO_IATA: Record<string, string> = {
   // Uruguay
   'montevideo': 'MVD', 'punta del este': 'PDP',
   // Venezuela
-  'caracas': 'CCS',
+  'caracas': 'CCS', 'isla margarita': 'PMV',
   // México
   'cancun': 'CUN', 'cancún': 'CUN', 'mexico city': 'MEX',
   'ciudad de mexico': 'MEX', 'ciudad de méxico': 'MEX',
   'guadalajara': 'GDL', 'monterrey': 'MTY', 'los cabos': 'SJD',
   'puerto vallarta': 'PVR', 'mazatlan': 'MZT',
+  'tulum': 'CUN', 'playa del carmen': 'CUN',   // Aeropuerto Cancún
+  'oaxaca': 'OAX',
   // Caribe
   'punta cana': 'PUJ', 'santo domingo': 'SDQ',
-  'la habana': 'HAV', 'habana': 'HAV', 'havana': 'HAV',
-  'cuba': 'HAV',
+  'la habana': 'HAV', 'habana': 'HAV', 'havana': 'HAV', 'cuba': 'HAV',
+  'aruba': 'AUA', 'curacao': 'CUR', 'curazao': 'CUR',
   // Centroamérica
   'panama': 'PTY', 'panamá': 'PTY', 'san jose': 'SJO', 'san josé': 'SJO',
   // USA
@@ -71,6 +113,8 @@ const CITY_TO_IATA: Record<string, string> = {
   'houston': 'IAH', 'dallas': 'DFW', 'atlanta': 'ATL',
   'washington': 'IAD', 'san francisco': 'SFO', 'boston': 'BOS',
   'las vegas': 'LAS', 'seattle': 'SEA', 'denver': 'DEN',
+  'nueva orleans': 'MSY', 'washington dc': 'IAD',
+  'los ángeles': 'LAX',
   // Europa
   'madrid': 'MAD', 'barcelona': 'BCN', 'paris': 'CDG',
   'london': 'LHR', 'londres': 'LHR', 'amsterdam': 'AMS',
@@ -81,15 +125,20 @@ const CITY_TO_IATA: Record<string, string> = {
   'munich': 'MUC', 'múnich': 'MUC', 'warsaw': 'WAW', 'varsovia': 'WAW',
   'praga': 'PRG', 'prague': 'PRG', 'budapest': 'BUD', 'bucarest': 'OTP',
   'copenhague': 'CPH', 'stockholm': 'ARN', 'oslo': 'OSL', 'helsinki': 'HEL',
+  'estocolmo': 'ARN', 'edimburgo': 'EDI',
   'atenas': 'ATH', 'athens': 'ATH', 'dubrovnik': 'DBV',
-  // Medio Oriente
-  'dubai': 'DXB', 'abu dhabi': 'AUH', 'istanbul': 'IST',
-  'estambul': 'IST', 'doha': 'DOH', 'tel aviv': 'TLV',
-  // Asia
+  'santorini': 'JTR', 'ibiza': 'IBZ', 'mallorca': 'PMI',
+  'sevilla': 'SVQ', 'valencia': 'VLC',
+  // Medio Oriente y África
+  'dubai': 'DXB', 'abu dhabi': 'AUH', 'abu dabi': 'AUH',
+  'istanbul': 'IST', 'estambul': 'IST', 'doha': 'DOH', 'tel aviv': 'TLV',
+  'cairo': 'CAI', 'marrakech': 'RAK',
+  // Asia y Oceanía
   'tokyo': 'NRT', 'tokio': 'NRT', 'beijing': 'PEK', 'pekin': 'PEK',
   'hong kong': 'HKG', 'bangkok': 'BKK', 'singapore': 'SIN',
-  'singapur': 'SIN', 'seoul': 'ICN', 'seul': 'ICN',
+  'singapur': 'SIN', 'seoul': 'ICN', 'seul': 'ICN', 'seúl': 'ICN',
   'mumbai': 'BOM', 'delhi': 'DEL', 'bali': 'DPS',
+  'osaka': 'KIX', 'kuala lumpur': 'KUL', 'shanghai': 'PVG',
   // Oceanía
   'sydney': 'SYD', 'melbourne': 'MEL', 'auckland': 'AKL',
 }
@@ -185,13 +234,31 @@ router.get('/search', async (req, res) => {
     return results
   }
 
+  // Tries primary airport; if 0 results, falls back through the list until one works
+  async function searchWithFallback(
+    primaryId: string, otherId: string, dates: string[], fallbacks: string[]
+  ): Promise<ReturnType<typeof transformFlight>[]> {
+    const primary = await searchOneWay(primaryId, otherId, dates)
+    if (primary.length > 0) return primary
+    for (const fb of fallbacks) {
+      if (fb === primaryId) continue
+      const r = await searchOneWay(fb, otherId, dates)
+      if (r.length > 0) return r
+    }
+    return []
+  }
+
+  // Argentine airports to try as fallback origins/destinations
+  const argFallbacks = ARGENTINA_AIRPORTS.filter(a => a !== departureId)
+
   try {
-    const allOffers = await searchOneWay(departureId, arrivalId, departureDates)
+    // Outbound: selected origin → destination; fallback to other Argentine airports
+    const allOffers = await searchWithFallback(departureId, arrivalId, departureDates, argFallbacks)
 
     let returnOffers: ReturnType<typeof transformFlight>[] | undefined
     if (isRoundTrip && returnDates.length > 0) {
-      // Search return direction: destination → origin
-      returnOffers = await searchOneWay(arrivalId, departureId, returnDates)
+      // Return: destination → selected origin; fallback to other Argentine airports as destination
+      returnOffers = await searchWithFallback(arrivalId, departureId, returnDates, argFallbacks)
       returnOffers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
     }
 
