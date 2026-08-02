@@ -151,7 +151,7 @@ function resolveAirportCode(input: string): string {
 
 let offerCounter = 0
 
-function transformFlight(raw: SerpFlight, currency: string, adults: number) {
+function transformFlight(raw: SerpFlight, currency: string, adults: number, returnDate?: string) {
   const mainAirline = raw.flights[0]?.airline ?? 'Desconocida'
   const airlineCode = airlineToIata(mainAirline)
   const airlineType = classifyAirlineName(mainAirline)
@@ -177,7 +177,8 @@ function transformFlight(raw: SerpFlight, currency: string, adults: number) {
     airlineName: mainAirline,
     airlineType,
     numberOfStops: stops,
-    oneWay: true,
+    oneWay: !returnDate,
+    returnDate,
   }
 }
 
@@ -203,29 +204,43 @@ router.get('/search', async (req, res) => {
   const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']!
   const isRoundTrip = tripType === 'roundtrip' && !!returnFrom
 
-  // Cap at 7 dates per direction to keep total API calls manageable
+  // Cap at 7 departure dates to keep API calls manageable
   const MAX_DATES = 7
   const departureDates = getDatesInRange(departureFrom, departureTo).slice(0, MAX_DATES)
-  const returnDates = isRoundTrip
-    ? getDatesInRange(returnFrom, returnTo ?? returnFrom).slice(0, MAX_DATES)
-    : []
 
-  async function searchOneWay(
+  // For round-trip: number of nights = distance between departure start and return start
+  const tripDurationDays = isRoundTrip && returnFrom
+    ? Math.round((new Date(returnFrom + 'T00:00:00Z').getTime() - new Date(departureFrom + 'T00:00:00Z').getTime()) / 86400000)
+    : 0
+
+  async function searchDates(
     depId: string, arrId: string, dates: string[]
   ): Promise<ReturnType<typeof transformFlight>[]> {
     const results: ReturnType<typeof transformFlight>[] = []
     for (const date of dates) {
+      let returnDate: string | undefined
+      if (isRoundTrip && tripDurationDays > 0) {
+        const rd = new Date(date + 'T00:00:00Z')
+        rd.setUTCDate(rd.getUTCDate() + tripDurationDays)
+        // Clamp to [returnFrom, returnTo]
+        const rfMs = new Date(returnFrom! + 'T00:00:00Z').getTime()
+        const rtMs = new Date((returnTo ?? returnFrom!) + 'T00:00:00Z').getTime()
+        const clampedMs = Math.max(rfMs, Math.min(rtMs, rd.getTime()))
+        returnDate = new Date(clampedMs).toISOString().split('T')[0]
+        if (returnDate <= date) continue
+      }
       try {
         const raw = await searchFlights({
           departure_id: depId,
           arrival_id: arrId,
           outbound_date: date,
+          return_date: returnDate,
           adults: pax.adults,
           children: pax.children,
-          type: 2,
+          type: isRoundTrip ? 1 : 2,
         })
         for (const r of raw) {
-          results.push(transformFlight(r, 'USD', pax.adults))
+          results.push(transformFlight(r, 'USD', pax.adults, returnDate))
         }
       } catch {
         // Skip failed individual dates silently
@@ -238,32 +253,24 @@ router.get('/search', async (req, res) => {
   async function searchWithFallback(
     primaryId: string, otherId: string, dates: string[], fallbacks: string[]
   ): Promise<ReturnType<typeof transformFlight>[]> {
-    const primary = await searchOneWay(primaryId, otherId, dates)
+    const primary = await searchDates(primaryId, otherId, dates)
     if (primary.length > 0) return primary
     for (const fb of fallbacks) {
       if (fb === primaryId) continue
-      const r = await searchOneWay(fb, otherId, dates)
+      const r = await searchDates(fb, otherId, dates)
       if (r.length > 0) return r
     }
     return []
   }
 
-  // Argentine airports to try as fallback origins/destinations
+  // Argentine airports to try as fallback origins
   const argFallbacks = ARGENTINA_AIRPORTS.filter(a => a !== departureId)
 
   try {
-    // Outbound: selected origin → destination; fallback to other Argentine airports
     const allOffers = await searchWithFallback(departureId, arrivalId, departureDates, argFallbacks)
 
-    let returnOffers: ReturnType<typeof transformFlight>[] | undefined
-    if (isRoundTrip && returnDates.length > 0) {
-      // Return: destination → selected origin; fallback to other Argentine airports as destination
-      returnOffers = await searchWithFallback(arrivalId, departureId, returnDates, argFallbacks)
-      returnOffers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
-    }
-
-    if (allOffers.length === 0 && (!returnOffers || returnOffers.length === 0)) {
-      res.json({ offers: [], returnOffers: returnOffers ?? [], cheapest: null, searchedDates: departureDates, currency: 'USD' })
+    if (allOffers.length === 0) {
+      res.json({ offers: [], cheapest: null, searchedDates: departureDates, currency: 'USD' })
       return
     }
 
@@ -271,7 +278,6 @@ router.get('/search', async (req, res) => {
 
     res.json({
       offers: allOffers,
-      returnOffers,
       cheapest: allOffers[0] ?? null,
       searchedDates: departureDates,
       currency: 'USD',

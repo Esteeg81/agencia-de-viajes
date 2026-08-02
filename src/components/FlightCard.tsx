@@ -1,11 +1,10 @@
-import { Plane, Clock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react'
+import { Plane, Clock, ArrowRight, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react'
 import type { FlightOffer } from '../types/travel'
 
 type Props = {
   offer: FlightOffer
   isCheapest?: boolean
   currency: string
-  directionLabel?: string
 }
 
 function formatDuration(iso: string) {
@@ -24,7 +23,7 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-export function FlightCard({ offer, isCheapest, currency, directionLabel }: Props) {
+export function FlightCard({ offer, isCheapest, currency }: Props) {
   const isLowCost = offer.airlineType === 'low-cost'
 
   return (
@@ -42,11 +41,6 @@ export function FlightCard({ offer, isCheapest, currency, directionLabel }: Prop
 
       {offer.itineraries.map((itin, idx) => (
         <div key={idx} className={idx > 0 ? 'mt-4 pt-4 border-t border-dashed border-gray-200' : ''}>
-          {directionLabel && idx === 0 && (
-            <div className="text-xs text-gray-400 font-medium mb-2 uppercase tracking-wide">
-              {directionLabel}
-            </div>
-          )}
           {itin.segments.map((seg, sIdx) => (
             <div key={sIdx} className="flex items-center gap-3 mb-2">
               <div className="text-center min-w-[60px]">
@@ -89,6 +83,18 @@ export function FlightCard({ offer, isCheapest, currency, directionLabel }: Prop
         </div>
       ))}
 
+      {offer.returnDate && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-purple-700 bg-purple-50 rounded-lg px-3 py-2">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Vuelta:{' '}
+          <strong>
+            {new Date(offer.returnDate + 'T00:00:00Z').toLocaleDateString('es-AR', {
+              weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
+            })}
+          </strong>
+        </div>
+      )}
+
       <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
         {/* Indicador aerolínea */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -119,7 +125,7 @@ export function FlightCard({ offer, isCheapest, currency, directionLabel }: Prop
           <div className="text-2xl font-bold text-gray-900">
             {currency} {Number(offer.price.total).toLocaleString('es-AR')}
           </div>
-          <div className="text-xs text-gray-400">precio estimado</div>
+          <div className="text-xs text-gray-400">{offer.oneWay ? 'precio estimado' : 'total ida y vuelta'}</div>
           <div className="text-xs text-gray-500">
             {currency} {Number(offer.price.perAdult).toLocaleString('es-AR')} / adulto
           </div>

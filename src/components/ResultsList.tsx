@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TrendingDown, BarChart2, Zap, Building2, LayoutList, ArrowRight, ArrowLeft } from 'lucide-react'
+import { TrendingDown, BarChart2, Zap, Building2, LayoutList } from 'lucide-react'
 import type { SearchResult, AirlineType, FlightOffer } from '../types/travel'
 import { FlightCard } from './FlightCard'
 
@@ -15,60 +15,45 @@ const FILTER_OPTIONS: { value: AirlineFilter; label: string; icon: React.ReactNo
   { value: 'tradicional', label: 'Tradicionales',  icon: <Building2 className="w-3.5 h-3.5" />, color: 'bg-indigo-600 text-white' },
 ]
 
-function FlightSection({
-  title,
-  icon,
-  offers,
-  cheapest,
-  currency,
-  airlineFilter,
-  onFilterChange,
-  directionLabel,
-  accentClass,
-}: {
-  title: string
-  icon: React.ReactNode
-  offers: FlightOffer[]
-  cheapest: FlightOffer | null
-  currency: string
-  airlineFilter: AirlineFilter
-  onFilterChange: (v: AirlineFilter) => void
-  directionLabel?: string
-  accentClass: string
-}) {
-  const filtered = airlineFilter === 'all' ? offers : offers.filter((o) => o.airlineType === airlineFilter)
-  const prices = filtered.map((o) => Number(o.price.total))
+export function ResultsList({ result }: Props) {
+  const { offers, cheapest, currency } = result
+  const [filter, setFilter] = useState<AirlineFilter>('all')
+
+  if (offers.length === 0) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <p className="text-lg font-medium">No se encontraron vuelos</p>
+        <p className="text-sm mt-1">Probá con otras fechas o destino</p>
+      </div>
+    )
+  }
+
+  const isRoundTrip = !offers[0]?.oneWay
+
+  const filtered = filter === 'all' ? offers : offers.filter((o: FlightOffer) => o.airlineType === filter)
+  const prices = filtered.map((o: FlightOffer) => Number(o.price.total))
   const minPrice = prices.length ? Math.min(...prices) : 0
   const maxPrice = prices.length ? Math.max(...prices) : 0
   const avgPrice = prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : 0
   const cheapestFiltered = filtered[0] ?? null
 
-  if (offers.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-400 text-sm">
-        No se encontraron vuelos para esta dirección
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className={`flex items-center gap-2 mb-4 font-semibold ${accentClass}`}>
-          {icon}
-          {title}
+        <div className="flex items-center gap-2 mb-4 font-semibold text-gray-700">
+          <BarChart2 className="w-5 h-5 text-blue-500" />
+          {isRoundTrip ? 'Vuelos ida y vuelta' : 'Vuelos de ida'}
           <span className="text-xs font-normal text-gray-400 ml-1">({offers.length} opciones)</span>
         </div>
 
-        {/* Filtro aerolínea */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {FILTER_OPTIONS.map((opt) => {
-            const count = opt.value === 'all' ? offers.length : offers.filter((o) => o.airlineType === opt.value).length
-            const active = airlineFilter === opt.value
+            const count = opt.value === 'all' ? offers.length : offers.filter((o: FlightOffer) => o.airlineType === opt.value).length
+            const active = filter === opt.value
             return (
               <button
                 key={opt.value}
-                onClick={() => onFilterChange(opt.value)}
+                onClick={() => setFilter(opt.value)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
                   active ? `${opt.color} border-transparent shadow-sm` : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                 }`}
@@ -85,7 +70,7 @@ function FlightSection({
 
         {filtered.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-4">
-            No hay vuelos {airlineFilter === 'low-cost' ? 'low cost' : 'de aerolíneas tradicionales'} en los resultados
+            No hay vuelos {filter === 'low-cost' ? 'low cost' : 'de aerolíneas tradicionales'} en los resultados
           </p>
         ) : (
           <>
@@ -122,71 +107,15 @@ function FlightSection({
       </div>
 
       <div className="space-y-4">
-        {filtered.map((offer) => (
+        {filtered.map((offer: FlightOffer) => (
           <FlightCard
             key={offer.id}
             offer={offer}
             isCheapest={cheapest?.id === offer.id}
             currency={currency}
-            directionLabel={directionLabel}
           />
         ))}
       </div>
-    </div>
-  )
-}
-
-export function ResultsList({ result }: Props) {
-  const { offers, returnOffers, cheapest, currency } = result
-  const [outboundFilter, setOutboundFilter] = useState<AirlineFilter>('all')
-  const [returnFilter, setReturnFilter] = useState<AirlineFilter>('all')
-
-  const hasReturn = returnOffers && returnOffers.length > 0
-
-  if (offers.length === 0 && !hasReturn) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <p className="text-lg font-medium">No se encontraron vuelos</p>
-        <p className="text-sm mt-1">Probá con otras fechas o destino</p>
-      </div>
-    )
-  }
-
-  const cheapestReturn = returnOffers ? [...returnOffers].sort((a, b) => Number(a.price.total) - Number(b.price.total))[0] ?? null : null
-
-  return (
-    <div className="space-y-8">
-      {hasReturn && (
-        <p className="text-xs text-gray-400 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
-          <strong className="text-amber-700">Precios individuales por tramo</strong> — Buscamos ida y vuelta por separado para mostrarte las mejores fechas en cada dirección. El precio final al comprar puede variar según la combinación que elijas en la aerolínea.
-        </p>
-      )}
-
-      <FlightSection
-        title={hasReturn ? 'Vuelos de ida' : 'Resultados'}
-        icon={<><BarChart2 className="w-5 h-5 text-blue-500" /><ArrowRight className="w-4 h-4 text-blue-400" /></>}
-        offers={offers}
-        cheapest={cheapest}
-        currency={currency}
-        airlineFilter={outboundFilter}
-        onFilterChange={setOutboundFilter}
-        directionLabel="Ida"
-        accentClass="text-gray-700"
-      />
-
-      {hasReturn && (
-        <FlightSection
-          title="Vuelos de vuelta"
-          icon={<><BarChart2 className="w-5 h-5 text-purple-500" /><ArrowLeft className="w-4 h-4 text-purple-400" /></>}
-          offers={returnOffers}
-          cheapest={cheapestReturn}
-          currency={currency}
-          airlineFilter={returnFilter}
-          onFilterChange={setReturnFilter}
-          directionLabel="Vuelta"
-          accentClass="text-gray-700"
-        />
-      )}
     </div>
   )
 }

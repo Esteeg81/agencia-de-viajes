@@ -50,6 +50,7 @@ export type FlightOffer = {
   airlineType: AirlineType
   numberOfStops: number
   oneWay: boolean
+  returnDate?: string
 }
 
 export type SearchParams = {
