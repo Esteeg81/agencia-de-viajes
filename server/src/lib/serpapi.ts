@@ -173,7 +173,7 @@ export async function searchHotels(params: SearchHotelsParams): Promise<SerpHote
   if (!API_KEY) throw new Error('Falta SERPAPI_KEY en las variables de entorno del servidor')
 
   const queryText = params.all_inclusive
-    ? `hoteles todo incluido en ${params.destination}`
+    ? `todo incluido en ${params.destination}`
     : `hoteles en ${params.destination}`
 
   const query = new URLSearchParams({
