@@ -11,10 +11,13 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 
 let hotelCounter = 0
 
+// Only exact all-inclusive terms — "resort" and "all in" are too generic
 const AI_KEYWORDS = [
-  'all inclusive', 'all-inclusive', 'todo incluido', 'todo-incluido',
-  'tudo incluído', 'tudo incluido', 'all in', 'all-in',
-  'pensión completa', 'pension completa', 'resort',
+  'all inclusive', 'all-inclusive',
+  'todo incluido', 'todo-incluido',
+  'tudo incluído', 'tudo incluido',
+  'pensión completa', 'pension completa',
+  'all inclusive resort',
 ]
 
 function detectAllInclusive(raw: SerpHotel): boolean {
