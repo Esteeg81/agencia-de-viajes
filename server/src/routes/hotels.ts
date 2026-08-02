@@ -11,6 +11,21 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 
 let hotelCounter = 0
 
+const AI_KEYWORDS = [
+  'all inclusive', 'all-inclusive', 'todo incluido', 'todo-incluido',
+  'tudo incluído', 'tudo incluido', 'all in', 'all-in',
+  'pensión completa', 'pension completa', 'resort',
+]
+
+function detectAllInclusive(raw: SerpHotel): boolean {
+  const haystack = [
+    ...(raw.amenities ?? []),
+    raw.description ?? '',
+    raw.name,
+  ].join(' ').toLowerCase()
+  return AI_KEYWORDS.some((kw) => haystack.includes(kw))
+}
+
 function transformHotel(raw: SerpHotel, checkIn: string, checkOut: string) {
   const nights = nightsBetween(checkIn, checkOut)
   const total = raw.total_rate?.extracted_lowest ?? (raw.rate_per_night?.extracted_lowest ?? 0) * nights
@@ -37,6 +52,7 @@ function transformHotel(raw: SerpHotel, checkIn: string, checkOut: string) {
     link: raw.link,
     overallRating: raw.overall_rating,
     reviewCount: raw.reviews?.count,
+    allInclusive: detectAllInclusive(raw),
   }
 }
 
@@ -46,14 +62,8 @@ router.get('/search', async (req, res) => {
     checkInDate,
     checkOutDate,
     adults = '1',
-    rooms = '1',
     allInclusive = 'false',
-    childrenAges = '',
   } = req.query as Record<string, string>
-
-  const childrenAgeList = childrenAges
-    ? childrenAges.split(',').map(Number).filter((n) => !isNaN(n))
-    : []
 
   if (!destination || !checkInDate || !checkOutDate) {
     res.status(400).json({ message: 'Faltan parámetros: destination, checkInDate, checkOutDate' })
@@ -81,21 +91,8 @@ router.get('/search', async (req, res) => {
       .map((h) => transformHotel(h, checkInDate, checkOutDate))
 
     if (wantsAllInclusive) {
-      const AI_KEYWORDS = [
-        'all inclusive', 'all-inclusive', 'todo incluido', 'todo-incluido',
-        'tudo incluído', 'tudo incluido', 'all in', 'all-in',
-        'pensión completa', 'pension completa', 'resort',
-      ]
-      const filtered = offers.filter((o) => {
-        const haystack = [
-          ...(o.amenities ?? []),
-          o.description ?? '',
-          o.hotelName,
-        ].join(' ').toLowerCase()
-        return AI_KEYWORDS.some((kw) => haystack.includes(kw))
-      })
-      // Si el filtro de keywords encuentra resultados, úsalos; si no, devuelve todo lo que Google
-      // encontró con la query "hoteles todo incluido en..." (ya está pre-filtrado por Google)
+      const filtered = offers.filter((o) => o.allInclusive)
+      // If keyword filter finds results use them; otherwise keep all (already from "todo incluido" query)
       if (filtered.length > 0) offers = filtered
     }
 

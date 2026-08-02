@@ -46,6 +46,7 @@ export type FlightOffer = {
   }
   itineraries: Itinerary[]
   validatingAirlineCodes: string[]
+  airlineName: string
   airlineType: AirlineType
   numberOfStops: number
   oneWay: boolean
@@ -64,6 +65,7 @@ export type SearchParams = {
 
 export type SearchResult = {
   offers: FlightOffer[]
+  returnOffers?: FlightOffer[]
   cheapest: FlightOffer | null
   searchedDates: string[]
   currency: string
@@ -88,6 +90,11 @@ export type HotelOffer = {
   boardType?: string
   description?: string
   amenities?: string[]
+  imageUrl?: string
+  link?: string
+  overallRating?: number
+  reviewCount?: number
+  allInclusive?: boolean
 }
 
 export type HotelSearchParams = {

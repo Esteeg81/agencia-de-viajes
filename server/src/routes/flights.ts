@@ -62,7 +62,7 @@ const CITY_TO_IATA: Record<string, string> = {
   // Caribe
   'punta cana': 'PUJ', 'santo domingo': 'SDQ',
   'la habana': 'HAV', 'habana': 'HAV', 'havana': 'HAV',
-  'cuba': 'HAV', 'cancun': 'CUN',
+  'cuba': 'HAV',
   // Centroamérica
   'panama': 'PTY', 'panamá': 'PTY', 'san jose': 'SJO', 'san josé': 'SJO',
   // USA
@@ -81,7 +81,7 @@ const CITY_TO_IATA: Record<string, string> = {
   'munich': 'MUC', 'múnich': 'MUC', 'warsaw': 'WAW', 'varsovia': 'WAW',
   'praga': 'PRG', 'prague': 'PRG', 'budapest': 'BUD', 'bucarest': 'OTP',
   'copenhague': 'CPH', 'stockholm': 'ARN', 'oslo': 'OSL', 'helsinki': 'HEL',
-  'atenas': 'ATH', 'athens': 'ATH', 'dubrovnik': 'DBV', 'dubai': 'DXB',
+  'atenas': 'ATH', 'athens': 'ATH', 'dubrovnik': 'DBV',
   // Medio Oriente
   'dubai': 'DXB', 'abu dhabi': 'AUH', 'istanbul': 'IST',
   'estambul': 'IST', 'doha': 'DOH', 'tel aviv': 'TLV',
@@ -125,9 +125,10 @@ function transformFlight(raw: SerpFlight, currency: string, adults: number) {
     price: { total, currency, perAdult },
     itineraries: [{ duration: minutesToIsoDuration(raw.total_duration), segments }],
     validatingAirlineCodes: [airlineCode],
+    airlineName: mainAirline,
     airlineType,
     numberOfStops: stops,
-    oneWay: raw.type !== 'Round trip',
+    oneWay: true,
   }
 }
 
@@ -151,51 +152,51 @@ router.get('/search', async (req, res) => {
   const arrivalId = resolveAirportCode(destination)
   const departureId = resolveAirportCode(origin)
   const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']!
-  const departureDates = getDatesInRange(departureFrom, departureTo)
   const isRoundTrip = tripType === 'roundtrip' && !!returnFrom
 
-  // Trip duration in days: distance between the start of each range keeps the stay length fixed
-  const tripDurationDays = isRoundTrip
-    ? Math.round((new Date(returnFrom).getTime() - new Date(departureFrom).getTime()) / 86400000)
-    : 0
+  // Cap at 7 dates per direction to keep total API calls manageable
+  const MAX_DATES = 7
+  const departureDates = getDatesInRange(departureFrom, departureTo).slice(0, MAX_DATES)
+  const returnDates = isRoundTrip
+    ? getDatesInRange(returnFrom, returnTo ?? returnFrom).slice(0, MAX_DATES)
+    : []
 
-  try {
-    const allOffers: ReturnType<typeof transformFlight>[] = []
-    const searchedDates: string[] = []
-
-    for (const depDate of departureDates) {
-      let returnDate: string | undefined
-      if (isRoundTrip) {
-        const depMs = new Date(depDate).getTime()
-        const calculated = new Date(depMs + tripDurationDays * 86400000).toISOString().split('T')[0]
-        // Clamp calculated return within [returnFrom, returnTo]
-        const clamped =
-          calculated < returnFrom ? returnFrom :
-          returnTo && calculated > returnTo ? returnTo :
-          calculated
-        // Skip if return would be on or before departure (impossible combination)
-        if (clamped <= depDate) continue
-        returnDate = clamped
-      }
-
-      const raw = await searchFlights({
-        departure_id: departureId,
-        arrival_id: arrivalId,
-        outbound_date: depDate,
-        return_date: returnDate,
-        adults: pax.adults,
-        children: pax.children,
-        type: isRoundTrip ? 1 : 2,
-      })
-
-      searchedDates.push(depDate)
-      for (const r of raw) {
-        allOffers.push(transformFlight(r, 'USD', pax.adults))
+  async function searchOneWay(
+    depId: string, arrId: string, dates: string[]
+  ): Promise<ReturnType<typeof transformFlight>[]> {
+    const results: ReturnType<typeof transformFlight>[] = []
+    for (const date of dates) {
+      try {
+        const raw = await searchFlights({
+          departure_id: depId,
+          arrival_id: arrId,
+          outbound_date: date,
+          adults: pax.adults,
+          children: pax.children,
+          type: 2,
+        })
+        for (const r of raw) {
+          results.push(transformFlight(r, 'USD', pax.adults))
+        }
+      } catch {
+        // Skip failed individual dates silently
       }
     }
+    return results
+  }
 
-    if (allOffers.length === 0) {
-      res.json({ offers: [], cheapest: null, searchedDates, currency: 'USD' })
+  try {
+    const allOffers = await searchOneWay(departureId, arrivalId, departureDates)
+
+    let returnOffers: ReturnType<typeof transformFlight>[] | undefined
+    if (isRoundTrip && returnDates.length > 0) {
+      // Search return direction: destination → origin
+      returnOffers = await searchOneWay(arrivalId, departureId, returnDates)
+      returnOffers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
+    }
+
+    if (allOffers.length === 0 && (!returnOffers || returnOffers.length === 0)) {
+      res.json({ offers: [], returnOffers: returnOffers ?? [], cheapest: null, searchedDates: departureDates, currency: 'USD' })
       return
     }
 
@@ -203,8 +204,9 @@ router.get('/search', async (req, res) => {
 
     res.json({
       offers: allOffers,
+      returnOffers,
       cheapest: allOffers[0] ?? null,
-      searchedDates,
+      searchedDates: departureDates,
       currency: 'USD',
     })
   } catch (err) {

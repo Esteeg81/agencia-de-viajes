@@ -5,6 +5,7 @@ type Props = {
   offer: FlightOffer
   isCheapest?: boolean
   currency: string
+  directionLabel?: string
 }
 
 function formatDuration(iso: string) {
@@ -20,12 +21,11 @@ function formatTime(dateStr: string) {
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+  return new Date(dateStr).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-export function FlightCard({ offer, isCheapest, currency }: Props) {
+export function FlightCard({ offer, isCheapest, currency, directionLabel }: Props) {
   const isLowCost = offer.airlineType === 'low-cost'
-  const airline = offer.validatingAirlineCodes[0] ?? '—'
 
   return (
     <div
@@ -42,14 +42,16 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
 
       {offer.itineraries.map((itin, idx) => (
         <div key={idx} className={idx > 0 ? 'mt-4 pt-4 border-t border-dashed border-gray-200' : ''}>
-          <div className="text-xs text-gray-400 font-medium mb-2 uppercase tracking-wide">
-            {idx === 0 ? 'Ida' : 'Vuelta'}
-          </div>
+          {directionLabel && idx === 0 && (
+            <div className="text-xs text-gray-400 font-medium mb-2 uppercase tracking-wide">
+              {directionLabel}
+            </div>
+          )}
           {itin.segments.map((seg, sIdx) => (
             <div key={sIdx} className="flex items-center gap-3 mb-2">
               <div className="text-center min-w-[60px]">
                 <div className="text-lg font-bold text-gray-800">{formatTime(seg.departure.at)}</div>
-                <div className="text-xs text-gray-500">{seg.departure.iataCode}</div>
+                <div className="text-xs text-gray-500 font-medium">{seg.departure.iataCode}</div>
                 <div className="text-xs text-gray-400">{formatDate(seg.departure.at)}</div>
               </div>
 
@@ -67,7 +69,7 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
 
               <div className="text-center min-w-[60px]">
                 <div className="text-lg font-bold text-gray-800">{formatTime(seg.arrival.at)}</div>
-                <div className="text-xs text-gray-500">{seg.arrival.iataCode}</div>
+                <div className="text-xs text-gray-500 font-medium">{seg.arrival.iataCode}</div>
                 <div className="text-xs text-gray-400">{formatDate(seg.arrival.at)}</div>
               </div>
             </div>
@@ -91,7 +93,7 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
         {/* Indicador aerolínea */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
-            Aerolínea: {airline}
+            {offer.airlineName}
           </span>
           {isLowCost ? (
             <span
@@ -107,7 +109,7 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
               className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full font-medium cursor-help"
             >
               <CheckCircle className="w-3.5 h-3.5" />
-              Aerolínea tradicional
+              Tradicional
             </span>
           )}
         </div>
@@ -117,7 +119,7 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
           <div className="text-2xl font-bold text-gray-900">
             {currency} {Number(offer.price.total).toLocaleString('es-AR')}
           </div>
-          <div className="text-xs text-gray-400">precio total</div>
+          <div className="text-xs text-gray-400">precio estimado</div>
           <div className="text-xs text-gray-500">
             {currency} {Number(offer.price.perAdult).toLocaleString('es-AR')} / adulto
           </div>

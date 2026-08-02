@@ -1,8 +1,8 @@
-import { Star, BedDouble, CheckCircle, ExternalLink, Plane } from 'lucide-react'
+import { Star, BedDouble, CheckCircle, ExternalLink, Plane, Sparkles } from 'lucide-react'
 import type { HotelOffer } from '../types/travel'
 
 type Props = {
-  offer: HotelOffer & { imageUrl?: string; link?: string; overallRating?: number; reviewCount?: number }
+  offer: HotelOffer
   isCheapest?: boolean
   onLinkToFlights?: () => void
 }
@@ -55,6 +55,12 @@ export function HotelCard({ offer, isCheapest, onLinkToFlights }: Props) {
                   <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                     ★ {offer.overallRating.toFixed(1)}
                     {offer.reviewCount ? ` (${offer.reviewCount.toLocaleString('es-AR')} reseñas)` : ''}
+                  </span>
+                )}
+                {offer.allInclusive && (
+                  <span className="flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-semibold">
+                    <Sparkles className="w-3 h-3" />
+                    Todo Incluido
                   </span>
                 )}
               </div>
