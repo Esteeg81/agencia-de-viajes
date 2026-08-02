@@ -152,21 +152,37 @@ router.get('/search', async (req, res) => {
   const departureId = resolveAirportCode(origin)
   const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']!
   const departureDates = getDatesInRange(departureFrom, departureTo)
-  const returnDate =
-    tripType === 'roundtrip' && returnFrom && returnTo ? returnFrom : undefined
+  const isRoundTrip = tripType === 'roundtrip' && !!returnFrom
 
-  const isRoundTrip = tripType === 'roundtrip' && !!returnDate
+  // Trip duration in days: distance between the start of each range keeps the stay length fixed
+  const tripDurationDays = isRoundTrip
+    ? Math.round((new Date(returnFrom).getTime() - new Date(departureFrom).getTime()) / 86400000)
+    : 0
 
   try {
     const allOffers: ReturnType<typeof transformFlight>[] = []
     const searchedDates: string[] = []
 
     for (const depDate of departureDates) {
+      let returnDate: string | undefined
+      if (isRoundTrip) {
+        const depMs = new Date(depDate).getTime()
+        const calculated = new Date(depMs + tripDurationDays * 86400000).toISOString().split('T')[0]
+        // Clamp calculated return within [returnFrom, returnTo]
+        const clamped =
+          calculated < returnFrom ? returnFrom :
+          returnTo && calculated > returnTo ? returnTo :
+          calculated
+        // Skip if return would be on or before departure (impossible combination)
+        if (clamped <= depDate) continue
+        returnDate = clamped
+      }
+
       const raw = await searchFlights({
         departure_id: departureId,
         arrival_id: arrivalId,
         outbound_date: depDate,
-        return_date: isRoundTrip ? returnDate : undefined,
+        return_date: returnDate,
         adults: pax.adults,
         children: pax.children,
         type: isRoundTrip ? 1 : 2,
