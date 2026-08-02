@@ -38,6 +38,7 @@ export type Itinerary = {
   segments: FlightSegment[]
   numberOfStops?: number
   directionLabel?: string
+  googleFlightsUrl?: string
 }
 
 export type FlightOffer = {

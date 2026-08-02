@@ -151,7 +151,7 @@ function resolveAirportCode(input: string): string {
 
 let offerCounter = 0
 
-function transformFlight(raw: SerpFlight, currency: string, adults: number, label?: string) {
+function transformFlight(raw: SerpFlight, currency: string, adults: number, label?: string, googleFlightsUrl?: string) {
   const mainAirline = raw.flights[0]?.airline ?? 'Desconocida'
   const airlineCode = airlineToIata(mainAirline)
   const airlineType = classifyAirlineName(mainAirline)
@@ -178,6 +178,7 @@ function transformFlight(raw: SerpFlight, currency: string, adults: number, labe
       segments,
       numberOfStops: stops,
       directionLabel: label,
+      googleFlightsUrl,
     }],
     validatingAirlineCodes: [airlineCode],
     airlineName: mainAirline,
@@ -223,7 +224,7 @@ router.get('/search', async (req, res) => {
     const results: Offer[] = []
     for (const date of dates) {
       try {
-        const raw = await searchFlights({
+        const { flights: raw, googleFlightsUrl } = await searchFlights({
           departure_id: depId,
           arrival_id: arrId,
           outbound_date: date,
@@ -231,7 +232,7 @@ router.get('/search', async (req, res) => {
           children: pax.children,
           type: 2,
         })
-        for (const r of raw) results.push(transformFlight(r, 'USD', pax.adults, label))
+        for (const r of raw) results.push(transformFlight(r, 'USD', pax.adults, label, googleFlightsUrl))
       } catch {
         // skip failed dates
       }

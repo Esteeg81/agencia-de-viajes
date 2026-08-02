@@ -1,4 +1,4 @@
-import { Plane, Clock, ArrowRight, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react'
+import { Plane, Clock, ArrowRight, ArrowLeft, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
 import type { FlightOffer } from '../types/travel'
 
 type Props = {
@@ -93,6 +93,18 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
                 </span>
               )}
             </div>
+
+            {itin.googleFlightsUrl && (
+              <a
+                href={itin.googleFlightsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Ver {itin.directionLabel ? `vuelo de ${itin.directionLabel === 'IDA' ? 'ida' : 'vuelta'} ` : ''}en Google Flights
+              </a>
+            )}
           </div>
         )
       })}

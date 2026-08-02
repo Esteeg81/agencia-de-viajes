@@ -97,7 +97,7 @@ type SerpFlightsResponse = {
   best_flights?: SerpFlight[]
   other_flights?: SerpFlight[]
   error?: string
-  search_metadata?: { status: string }
+  search_metadata?: { status: string; google_flights_url?: string }
 }
 
 type SearchFlightsParams = {
@@ -110,7 +110,7 @@ type SearchFlightsParams = {
   type: 1 | 2
 }
 
-export async function searchFlights(params: SearchFlightsParams): Promise<SerpFlight[]> {
+export async function searchFlights(params: SearchFlightsParams): Promise<{ flights: SerpFlight[]; googleFlightsUrl?: string }> {
   if (!API_KEY) throw new Error('Falta SERPAPI_KEY en las variables de entorno del servidor')
 
   const query = new URLSearchParams({
@@ -134,7 +134,10 @@ export async function searchFlights(params: SearchFlightsParams): Promise<SerpFl
     throw new Error(data.error ?? `SerpAPI error: ${res.status}`)
   }
 
-  return [...(data.best_flights ?? []), ...(data.other_flights ?? [])]
+  return {
+    flights: [...(data.best_flights ?? []), ...(data.other_flights ?? [])],
+    googleFlightsUrl: data.search_metadata?.google_flights_url,
+  }
 }
 
 // ── Tipos SerpAPI Hoteles ─────────────────────────────────────────────────────
