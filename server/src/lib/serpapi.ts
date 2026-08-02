@@ -50,8 +50,8 @@ export function minutesToIsoDuration(minutes: number): string {
 }
 
 export function serpTimeToIso(time: string): string {
-  // SerpAPI gives "2024-08-01 14:00" → ISO
-  return new Date(time.replace(' ', 'T') + ':00').toISOString()
+  // SerpAPI gives local airport time "2024-08-01 14:00" — tag as UTC so client displays it as-is
+  return time.replace(' ', 'T') + ':00.000Z'
 }
 
 export function getDatesInRange(from: string, to: string): string[] {

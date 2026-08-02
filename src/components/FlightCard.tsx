@@ -16,11 +16,11 @@ function formatDuration(iso: string) {
 }
 
 function formatTime(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  return new Date(dateStr).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
+  return new Date(dateStr).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
 }
 
 export function FlightCard({ offer, isCheapest, currency }: Props) {

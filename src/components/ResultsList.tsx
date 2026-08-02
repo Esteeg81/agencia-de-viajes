@@ -123,7 +123,7 @@ export function ResultsList({ result }: Props) {
                   El más económico sale el{' '}
                   <strong>
                     {new Date(cheapestFiltered.itineraries[0].segments[0].departure.at).toLocaleDateString('es-AR', {
-                      weekday: 'long', day: 'numeric', month: 'long',
+                      weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC',
                     })}
                   </strong>
                 </span>
