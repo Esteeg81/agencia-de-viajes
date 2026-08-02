@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TrendingDown, BarChart2, Zap, Building2, LayoutList } from 'lucide-react'
+import { TrendingDown, BarChart2, Zap, Building2, LayoutList, Clock } from 'lucide-react'
 import type { SearchResult, AirlineType, FlightOffer } from '../types/travel'
 import { FlightCard } from './FlightCard'
 
@@ -15,9 +15,16 @@ const FILTER_OPTIONS: { value: AirlineFilter; label: string; icon: React.ReactNo
   { value: 'tradicional', label: 'Tradicionales',  icon: <Building2 className="w-3.5 h-3.5" />, color: 'bg-indigo-600 text-white' },
 ]
 
+function passesShortFilter(o: FlightOffer): boolean {
+  return o.itineraries.every(itin =>
+    (itin.durationMinutes ?? 9999) <= 720 && (itin.numberOfStops ?? 0) <= 1
+  )
+}
+
 export function ResultsList({ result }: Props) {
   const { offers, cheapest, currency } = result
-  const [filter, setFilter] = useState<AirlineFilter>('all')
+  const [airlineFilter, setAirlineFilter] = useState<AirlineFilter>('all')
+  const [filterShort, setFilterShort] = useState(true)
 
   if (offers.length === 0) {
     return (
@@ -30,7 +37,9 @@ export function ResultsList({ result }: Props) {
 
   const isRoundTrip = !offers[0]?.oneWay
 
-  const filtered = filter === 'all' ? offers : offers.filter((o: FlightOffer) => o.airlineType === filter)
+  const afterShort = filterShort ? offers.filter(passesShortFilter) : offers
+  const filtered = airlineFilter === 'all' ? afterShort : afterShort.filter((o: FlightOffer) => o.airlineType === airlineFilter)
+
   const prices = filtered.map((o: FlightOffer) => Number(o.price.total))
   const minPrice = prices.length ? Math.min(...prices) : 0
   const maxPrice = prices.length ? Math.max(...prices) : 0
@@ -46,14 +55,17 @@ export function ResultsList({ result }: Props) {
           <span className="text-xs font-normal text-gray-400 ml-1">({offers.length} opciones)</span>
         </div>
 
+        {/* Filtros */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {FILTER_OPTIONS.map((opt) => {
-            const count = opt.value === 'all' ? offers.length : offers.filter((o: FlightOffer) => o.airlineType === opt.value).length
-            const active = filter === opt.value
+            const count = opt.value === 'all'
+              ? (filterShort ? offers.filter(passesShortFilter) : offers).length
+              : (filterShort ? offers.filter(passesShortFilter) : offers).filter((o: FlightOffer) => o.airlineType === opt.value).length
+            const active = airlineFilter === opt.value
             return (
               <button
                 key={opt.value}
-                onClick={() => setFilter(opt.value)}
+                onClick={() => setAirlineFilter(opt.value)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
                   active ? `${opt.color} border-transparent shadow-sm` : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                 }`}
@@ -66,11 +78,26 @@ export function ResultsList({ result }: Props) {
               </button>
             )
           })}
+
+          {/* Filtro rápido */}
+          <button
+            onClick={() => setFilterShort(!filterShort)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              filterShort
+                ? 'bg-emerald-600 text-white border-transparent shadow-sm'
+                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            ≤12h · ≤1 escala
+          </button>
         </div>
 
         {filtered.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-4">
-            No hay vuelos {filter === 'low-cost' ? 'low cost' : 'de aerolíneas tradicionales'} en los resultados
+            {filterShort
+              ? 'No hay vuelos que cumplan ≤12h y ≤1 escala — desactivá el filtro para ver todos'
+              : `No hay vuelos ${airlineFilter === 'low-cost' ? 'low cost' : 'de aerolíneas tradicionales'} en los resultados`}
           </p>
         ) : (
           <>

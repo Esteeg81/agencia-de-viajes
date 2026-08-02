@@ -34,7 +34,10 @@ export type FlightSegment = {
 
 export type Itinerary = {
   duration: string
+  durationMinutes?: number
   segments: FlightSegment[]
+  numberOfStops?: number
+  directionLabel?: string
 }
 
 export type FlightOffer = {
@@ -50,7 +53,6 @@ export type FlightOffer = {
   airlineType: AirlineType
   numberOfStops: number
   oneWay: boolean
-  returnDate?: string
 }
 
 export type SearchParams = {

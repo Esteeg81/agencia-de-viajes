@@ -151,7 +151,7 @@ function resolveAirportCode(input: string): string {
 
 let offerCounter = 0
 
-function transformFlight(raw: SerpFlight, currency: string, adults: number, returnDate?: string) {
+function transformFlight(raw: SerpFlight, currency: string, adults: number, label?: string) {
   const mainAirline = raw.flights[0]?.airline ?? 'Desconocida'
   const airlineCode = airlineToIata(mainAirline)
   const airlineType = classifyAirlineName(mainAirline)
@@ -172,13 +172,18 @@ function transformFlight(raw: SerpFlight, currency: string, adults: number, retu
   return {
     id: `flight-${++offerCounter}-${raw.price}`,
     price: { total, currency, perAdult },
-    itineraries: [{ duration: minutesToIsoDuration(raw.total_duration), segments }],
+    itineraries: [{
+      duration: minutesToIsoDuration(raw.total_duration),
+      durationMinutes: raw.total_duration,
+      segments,
+      numberOfStops: stops,
+      directionLabel: label,
+    }],
     validatingAirlineCodes: [airlineCode],
     airlineName: mainAirline,
     airlineType,
     numberOfStops: stops,
-    oneWay: !returnDate,
-    returnDate,
+    oneWay: true,
   }
 }
 
@@ -204,81 +209,137 @@ router.get('/search', async (req, res) => {
   const pax = PASSENGER_MAP[passengers] ?? PASSENGER_MAP['1_adult']!
   const isRoundTrip = tripType === 'roundtrip' && !!returnFrom
 
-  // Cap at 7 departure dates to keep API calls manageable
   const MAX_DATES = 7
   const departureDates = getDatesInRange(departureFrom, departureTo).slice(0, MAX_DATES)
 
-  // For round-trip: number of nights = distance between departure start and return start
   const tripDurationDays = isRoundTrip && returnFrom
     ? Math.round((new Date(returnFrom + 'T00:00:00Z').getTime() - new Date(departureFrom + 'T00:00:00Z').getTime()) / 86400000)
     : 0
 
-  async function searchDates(
-    depId: string, arrId: string, dates: string[]
-  ): Promise<ReturnType<typeof transformFlight>[]> {
-    const results: ReturnType<typeof transformFlight>[] = []
+  type Offer = ReturnType<typeof transformFlight>
+
+  // One-way type=2 search over a list of dates
+  async function searchOneWay(depId: string, arrId: string, dates: string[], label?: string): Promise<Offer[]> {
+    const results: Offer[] = []
     for (const date of dates) {
-      let returnDate: string | undefined
-      if (isRoundTrip && tripDurationDays > 0) {
-        const rd = new Date(date + 'T00:00:00Z')
-        rd.setUTCDate(rd.getUTCDate() + tripDurationDays)
-        // Clamp to [returnFrom, returnTo]
-        const rfMs = new Date(returnFrom! + 'T00:00:00Z').getTime()
-        const rtMs = new Date((returnTo ?? returnFrom!) + 'T00:00:00Z').getTime()
-        const clampedMs = Math.max(rfMs, Math.min(rtMs, rd.getTime()))
-        returnDate = new Date(clampedMs).toISOString().split('T')[0]
-        if (returnDate <= date) continue
-      }
       try {
         const raw = await searchFlights({
           departure_id: depId,
           arrival_id: arrId,
           outbound_date: date,
-          return_date: returnDate,
           adults: pax.adults,
           children: pax.children,
-          type: isRoundTrip ? 1 : 2,
+          type: 2,
         })
-        for (const r of raw) {
-          results.push(transformFlight(r, 'USD', pax.adults, returnDate))
-        }
+        for (const r of raw) results.push(transformFlight(r, 'USD', pax.adults, label))
       } catch {
-        // Skip failed individual dates silently
+        // skip failed dates
       }
     }
     return results
   }
 
-  // Tries primary airport; if 0 results, falls back through the list until one works
-  async function searchWithFallback(
-    primaryId: string, otherId: string, dates: string[], fallbacks: string[]
-  ): Promise<ReturnType<typeof transformFlight>[]> {
-    const primary = await searchDates(primaryId, otherId, dates)
+  // Tries primaryDep → arr; falls back to other dep airports
+  async function searchWithDepFallback(primaryDep: string, arr: string, dates: string[], label?: string): Promise<Offer[]> {
+    const primary = await searchOneWay(primaryDep, arr, dates, label)
     if (primary.length > 0) return primary
-    for (const fb of fallbacks) {
-      if (fb === primaryId) continue
-      const r = await searchDates(fb, otherId, dates)
+    for (const fb of ARGENTINA_AIRPORTS) {
+      if (fb === primaryDep) continue
+      const r = await searchOneWay(fb, arr, dates, label)
       if (r.length > 0) return r
     }
     return []
   }
 
-  // Argentine airports to try as fallback origins
-  const argFallbacks = ARGENTINA_AIRPORTS.filter(a => a !== departureId)
+  // Tries dep → primaryArr; falls back to other arr airports
+  async function searchWithArrFallback(dep: string, primaryArr: string, dates: string[], label?: string): Promise<Offer[]> {
+    const primary = await searchOneWay(dep, primaryArr, dates, label)
+    if (primary.length > 0) return primary
+    for (const fb of ARGENTINA_AIRPORTS) {
+      if (fb === primaryArr) continue
+      const r = await searchOneWay(dep, fb, dates, label)
+      if (r.length > 0) return r
+    }
+    return []
+  }
 
   try {
-    const allOffers = await searchWithFallback(departureId, arrivalId, departureDates, argFallbacks)
+    const outboundLabel = isRoundTrip ? 'IDA' : undefined
+    const outboundOffers = await searchWithDepFallback(departureId, arrivalId, departureDates, outboundLabel)
 
-    if (allOffers.length === 0) {
+    let finalOffers: (Offer & { oneWay: boolean })[] = outboundOffers
+
+    if (isRoundTrip && tripDurationDays > 0 && outboundOffers.length > 0) {
+      // Map each departure date to its clamped return date
+      const depToRet = new Map<string, string>()
+      for (const d of departureDates) {
+        const rd = new Date(d + 'T00:00:00Z')
+        rd.setUTCDate(rd.getUTCDate() + tripDurationDays)
+        const rfMs = new Date(returnFrom! + 'T00:00:00Z').getTime()
+        const rtMs = new Date((returnTo ?? returnFrom!) + 'T00:00:00Z').getTime()
+        const retDate = new Date(Math.max(rfMs, Math.min(rtMs, rd.getTime()))).toISOString().slice(0, 10)
+        if (retDate > d) depToRet.set(d, retDate)
+      }
+
+      const uniqueReturnDates = [...new Set(depToRet.values())]
+      const returnOffers = await searchWithArrFallback(arrivalId, departureId, uniqueReturnDates, 'VUELTA')
+
+      // Group return offers by their departure date
+      const returnByDate = new Map<string, Offer[]>()
+      for (const r of returnOffers) {
+        const date = r.itineraries[0].segments[0].departure.at.slice(0, 10)
+        if (!returnByDate.has(date)) returnByDate.set(date, [])
+        returnByDate.get(date)!.push(r)
+      }
+
+      // Group outbound by date
+      const outboundByDate = new Map<string, Offer[]>()
+      for (const o of outboundOffers) {
+        const date = o.itineraries[0].segments[0].departure.at.slice(0, 10)
+        if (!outboundByDate.has(date)) outboundByDate.set(date, [])
+        outboundByDate.get(date)!.push(o)
+      }
+
+      const paired: (Offer & { oneWay: boolean })[] = []
+      let pairId = 0
+
+      for (const [depDate, outbounds] of outboundByDate) {
+        const retDate = depToRet.get(depDate)
+        if (!retDate) continue
+        const rets = (returnByDate.get(retDate) ?? []).sort((a, b) => Number(a.price.total) - Number(b.price.total))
+        if (rets.length === 0) continue
+
+        const bestReturn = rets[0]
+        for (const outbound of outbounds.slice(0, 5)) {
+          const totalPrice = (Number(outbound.price.total) + Number(bestReturn.price.total)).toFixed(2)
+          const totalPerAdult = (Number(outbound.price.perAdult) + Number(bestReturn.price.perAdult)).toFixed(2)
+          paired.push({
+            id: `trip-${++pairId}`,
+            price: { total: totalPrice, currency: 'USD', perAdult: totalPerAdult },
+            itineraries: [outbound.itineraries[0], bestReturn.itineraries[0]],
+            validatingAirlineCodes: outbound.validatingAirlineCodes,
+            airlineName: outbound.airlineName,
+            airlineType: outbound.airlineType,
+            numberOfStops: outbound.numberOfStops,
+            oneWay: false,
+          })
+        }
+      }
+
+      // Only use paired results if pairing succeeded; otherwise fall back to outbound-only
+      if (paired.length > 0) finalOffers = paired
+    }
+
+    if (finalOffers.length === 0) {
       res.json({ offers: [], cheapest: null, searchedDates: departureDates, currency: 'USD' })
       return
     }
 
-    allOffers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
+    finalOffers.sort((a, b) => Number(a.price.total) - Number(b.price.total))
 
     res.json({
-      offers: allOffers,
-      cheapest: allOffers[0] ?? null,
+      offers: finalOffers,
+      cheapest: finalOffers[0] ?? null,
       searchedDates: departureDates,
       currency: 'USD',
     })

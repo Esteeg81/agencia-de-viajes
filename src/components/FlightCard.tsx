@@ -39,64 +39,65 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
         </div>
       )}
 
-      {offer.itineraries.map((itin, idx) => (
-        <div key={idx} className={idx > 0 ? 'mt-4 pt-4 border-t border-dashed border-gray-200' : ''}>
-          {itin.segments.map((seg, sIdx) => (
-            <div key={sIdx} className="flex items-center gap-3 mb-2">
-              <div className="text-center min-w-[60px]">
-                <div className="text-lg font-bold text-gray-800">{formatTime(seg.departure.at)}</div>
-                <div className="text-xs text-gray-500 font-medium">{seg.departure.iataCode}</div>
-                <div className="text-xs text-gray-400">{formatDate(seg.departure.at)}</div>
+      {offer.itineraries.map((itin, idx) => {
+        const stops = itin.numberOfStops ?? offer.numberOfStops
+        return (
+          <div key={idx} className={idx > 0 ? 'mt-4 pt-4 border-t-2 border-dashed border-gray-100' : ''}>
+            {itin.directionLabel && (
+              <div className={`flex items-center gap-1.5 text-xs font-bold mb-2 uppercase tracking-widest ${
+                itin.directionLabel === 'IDA' ? 'text-blue-600' : 'text-purple-600'
+              }`}>
+                {itin.directionLabel === 'IDA'
+                  ? <ArrowRight className="w-3.5 h-3.5" />
+                  : <ArrowLeft className="w-3.5 h-3.5" />}
+                {itin.directionLabel}
               </div>
-
-              <div className="flex-1 flex flex-col items-center text-gray-400">
-                <div className="text-xs mb-1">{formatDuration(seg.duration)}</div>
-                <div className="flex items-center w-full gap-1">
-                  <div className="flex-1 border-t border-dashed border-gray-300" />
-                  <Plane className="w-4 h-4 text-blue-400 rotate-90" />
-                  <div className="flex-1 border-t border-dashed border-gray-300" />
-                </div>
-                <div className="text-xs mt-1 text-blue-500 font-medium">
-                  {seg.carrierCode} {seg.number}
-                </div>
-              </div>
-
-              <div className="text-center min-w-[60px]">
-                <div className="text-lg font-bold text-gray-800">{formatTime(seg.arrival.at)}</div>
-                <div className="text-xs text-gray-500 font-medium">{seg.arrival.iataCode}</div>
-                <div className="text-xs text-gray-400">{formatDate(seg.arrival.at)}</div>
-              </div>
-            </div>
-          ))}
-
-          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span>Duración total: {formatDuration(itin.duration)}</span>
-            {offer.numberOfStops === 0 ? (
-              <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Directo</span>
-            ) : (
-              <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
-                {offer.numberOfStops} escala{offer.numberOfStops > 1 ? 's' : ''}
-              </span>
             )}
-          </div>
-        </div>
-      ))}
 
-      {offer.returnDate && (
-        <div className="mt-3 flex items-center gap-2 text-xs text-purple-700 bg-purple-50 rounded-lg px-3 py-2">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Vuelta:{' '}
-          <strong>
-            {new Date(offer.returnDate + 'T00:00:00Z').toLocaleDateString('es-AR', {
-              weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
-            })}
-          </strong>
-        </div>
-      )}
+            {itin.segments.map((seg, sIdx) => (
+              <div key={sIdx} className="flex items-center gap-3 mb-2">
+                <div className="text-center min-w-[60px]">
+                  <div className="text-lg font-bold text-gray-800">{formatTime(seg.departure.at)}</div>
+                  <div className="text-xs text-gray-500 font-medium">{seg.departure.iataCode}</div>
+                  <div className="text-xs text-gray-400">{formatDate(seg.departure.at)}</div>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center text-gray-400">
+                  <div className="text-xs mb-1">{formatDuration(seg.duration)}</div>
+                  <div className="flex items-center w-full gap-1">
+                    <div className="flex-1 border-t border-dashed border-gray-300" />
+                    <Plane className="w-4 h-4 text-blue-400 rotate-90" />
+                    <div className="flex-1 border-t border-dashed border-gray-300" />
+                  </div>
+                  <div className="text-xs mt-1 text-blue-500 font-medium">
+                    {seg.carrierCode} {seg.number}
+                  </div>
+                </div>
+
+                <div className="text-center min-w-[60px]">
+                  <div className="text-lg font-bold text-gray-800">{formatTime(seg.arrival.at)}</div>
+                  <div className="text-xs text-gray-500 font-medium">{seg.arrival.iataCode}</div>
+                  <div className="text-xs text-gray-400">{formatDate(seg.arrival.at)}</div>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Duración: {formatDuration(itin.duration)}</span>
+              {stops === 0 ? (
+                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Directo</span>
+              ) : (
+                <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
+                  {stops} escala{stops > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      })}
 
       <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
-        {/* Indicador aerolínea */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
             {offer.airlineName}
@@ -120,12 +121,11 @@ export function FlightCard({ offer, isCheapest, currency }: Props) {
           )}
         </div>
 
-        {/* Precio */}
         <div className="text-right">
           <div className="text-2xl font-bold text-gray-900">
             {currency} {Number(offer.price.total).toLocaleString('es-AR')}
           </div>
-          <div className="text-xs text-gray-400">{offer.oneWay ? 'precio estimado' : 'total ida y vuelta'}</div>
+          <div className="text-xs text-gray-400">{offer.oneWay ? 'precio estimado' : 'estimado ida y vuelta'}</div>
           <div className="text-xs text-gray-500">
             {currency} {Number(offer.price.perAdult).toLocaleString('es-AR')} / adulto
           </div>
