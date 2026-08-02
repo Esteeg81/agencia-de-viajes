@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Plane, Hotel, Car } from 'lucide-react'
+import { Plane, Hotel, Car, ClipboardList } from 'lucide-react'
 import { SearchForm } from './components/SearchForm'
 import { ResultsList } from './components/ResultsList'
 import { HotelSearchForm } from './components/HotelSearchForm'
 import { HotelResultsList } from './components/HotelResultsList'
 import { TransferSearchForm } from './components/TransferSearchForm'
+import { TasksPanel } from './components/TasksPanel'
 import { searchFlights } from './lib/api'
 import { searchHotels } from './lib/hotelsApi'
 import type {
@@ -13,16 +14,18 @@ import type {
   SearchMode, FlightPreset, PassengerOption,
 } from './types/travel'
 
-type TabConfig = { id: SearchMode; label: string; icon: React.ReactNode; activeColor: string }
+type AppTab = SearchMode | 'tasks'
+type TabConfig = { id: AppTab; label: string; icon: React.ReactNode; activeColor: string }
 
 const TABS: TabConfig[] = [
-  { id: 'flights',   label: 'Vuelos',    icon: <Plane className="w-4 h-4" />, activeColor: 'bg-blue-600 text-white' },
-  { id: 'hotels',    label: 'Hoteles',   icon: <Hotel className="w-4 h-4" />, activeColor: 'bg-amber-500 text-white' },
-  { id: 'transfers', label: 'Traslados', icon: <Car className="w-4 h-4" />,   activeColor: 'bg-purple-600 text-white' },
+  { id: 'flights',   label: 'Vuelos',    icon: <Plane className="w-4 h-4" />,         activeColor: 'bg-blue-600 text-white' },
+  { id: 'hotels',    label: 'Hoteles',   icon: <Hotel className="w-4 h-4" />,         activeColor: 'bg-amber-500 text-white' },
+  { id: 'transfers', label: 'Traslados', icon: <Car className="w-4 h-4" />,           activeColor: 'bg-purple-600 text-white' },
+  { id: 'tasks',     label: 'Tareas',    icon: <ClipboardList className="w-4 h-4" />, activeColor: 'bg-indigo-600 text-white' },
 ]
 
 export default function App() {
-  const [mode, setMode] = useState<SearchMode>('flights')
+  const [mode, setMode] = useState<AppTab>('flights')
 
   const [flightLoading, setFlightLoading] = useState(false)
   const [flightResult, setFlightResult] = useState<SearchResult | null>(null)
@@ -103,7 +106,7 @@ export default function App() {
     setMode('flights')
   }
 
-  const showHero = !flightResult && !hotelResult && !flightLoading && !hotelLoading
+  const showHero = !flightResult && !hotelResult && !flightLoading && !hotelLoading && mode !== 'tasks'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
@@ -137,7 +140,7 @@ export default function App() {
         </div>
 
         {/* Hero */}
-        {showHero && mode !== 'transfers' && (
+        {showHero && mode !== 'transfers' && mode !== 'tasks' && (
           <div className="text-center py-2">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               {mode === 'flights' ? '¿A dónde querés volar?' : '¿Dónde vas a alojarte?'}
@@ -160,6 +163,7 @@ export default function App() {
         )}
         {mode === 'hotels'    && <HotelSearchForm onSearch={handleHotelSearch} loading={hotelLoading} />}
         {mode === 'transfers' && <TransferSearchForm />}
+        {mode === 'tasks'     && <TasksPanel />}
 
         {/* Carga */}
         {(flightLoading || hotelLoading) && (
