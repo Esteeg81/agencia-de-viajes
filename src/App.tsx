@@ -140,7 +140,7 @@ export default function App() {
         </div>
 
         {/* Hero */}
-        {showHero && mode !== 'transfers' && mode !== 'tasks' && (
+        {showHero && mode !== 'transfers' && (
           <div className="text-center py-2">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               {mode === 'flights' ? '¿A dónde querés volar?' : '¿Dónde vas a alojarte?'}
