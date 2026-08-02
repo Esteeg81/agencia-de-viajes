@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, MapPin, Calendar, Users, ArrowLeftRight } from 'lucide-react'
 import { ORIGINS, PASSENGER_OPTIONS } from '../types/travel'
 import type { SearchParams, PassengerOption, FlightPreset } from '../types/travel'
+import { filterCities } from '../data/cities'
 
 type Props = {
   onSearch: (params: SearchParams) => void
@@ -15,12 +16,35 @@ export function SearchForm({ onSearch, loading, preset }: Props) {
   const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip')
   const [origin, setOrigin] = useState(ORIGINS[2].iata)
   const [destination, setDestination] = useState('')
+  const [suggestions, setSuggestions] = useState<{ name: string; country: string }[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [departureFrom, setDepartureFrom] = useState(today)
   const [departureTo, setDepartureTo] = useState(today)
   const [returnFrom, setReturnFrom] = useState('')
   const [returnTo, setReturnTo] = useState('')
   const [passengers, setPassengers] = useState<PassengerOption>('1_adult')
   const [error, setError] = useState('')
+
+  const destInputRef = useRef<HTMLInputElement>(null)
+  const destDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setSuggestions(filterCities(destination))
+    setShowSuggestions(destination.length >= 2)
+  }, [destination])
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        destInputRef.current && !destInputRef.current.contains(e.target as Node) &&
+        destDropdownRef.current && !destDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   // When a preset arrives from the hotel tab, populate the form and auto-search
   useEffect(() => {
@@ -121,18 +145,42 @@ export function SearchForm({ onSearch, loading, preset }: Props) {
         </div>
 
         {/* Destino */}
-        <div>
+        <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             <ArrowLeftRight className="inline w-4 h-4 mr-1 text-blue-500" />
-            Destino (código IATA o ciudad)
+            Destino (ciudad o código IATA)
           </label>
           <input
+            ref={destInputRef}
             type="text"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
-            placeholder="Ej: Recife, Miami, BRC, MAD"
+            onFocus={() => destination.length >= 2 && setShowSuggestions(true)}
+            placeholder="Ej: Bariloche, Miami, Cancún, MAD..."
+            autoComplete="off"
             className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={destDropdownRef}
+              className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+            >
+              {suggestions.map((c) => (
+                <button
+                  key={`${c.name}-${c.country}`}
+                  type="button"
+                  onMouseDown={() => {
+                    setDestination(c.name)
+                    setShowSuggestions(false)
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors"
+                >
+                  <span className="font-medium text-gray-800">{c.name}</span>
+                  <span className="text-xs text-gray-400 ml-2 shrink-0">{c.country}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
