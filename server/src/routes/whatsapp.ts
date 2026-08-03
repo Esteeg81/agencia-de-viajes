@@ -3,10 +3,16 @@ import { Router } from 'express'
 const router = Router()
 
 router.post('/send', async (req, res) => {
-  const { phone, apikey, message } = req.body as { phone?: string; apikey?: string; message?: string }
+  const { phone, message } = req.body as { phone?: string; message?: string }
+  const apikey = process.env.CALLMEBOT_API_KEY
 
-  if (!phone || !apikey || !message) {
-    res.status(400).json({ message: 'Faltan parámetros: phone, apikey, message' })
+  if (!phone || !message) {
+    res.status(400).json({ message: 'Faltan parámetros: phone, message' })
+    return
+  }
+
+  if (!apikey) {
+    res.status(500).json({ message: 'CALLMEBOT_API_KEY no configurada en el servidor' })
     return
   }
 
@@ -23,7 +29,7 @@ router.post('/send', async (req, res) => {
       return
     }
 
-    res.json({ ok: true, detail: body.slice(0, 200) })
+    res.json({ ok: true })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error al enviar'
     res.status(500).json({ message: msg })

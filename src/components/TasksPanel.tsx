@@ -52,7 +52,7 @@ export function TasksPanel() {
   const [editingTask, setEditingTask] = useState<ScheduledTask | undefined>()
   const [runningAll, setRunningAll] = useState(false)
 
-  const [wsSettings, setWsSettings] = useState<WsSettings>(() => getWsSettings() ?? { phone: '', apikey: '' })
+  const [wsSettings, setWsSettings] = useState<WsSettings>(() => getWsSettings() ?? { phone: '' })
   const [showWsPanel, setShowWsPanel] = useState(false)
   const [wsSending, setWsSending] = useState(false)
   const [wsFeedback, setWsFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -150,7 +150,7 @@ export function TasksPanel() {
   }
 
   async function doSend(message: string) {
-    if (!wsSettings.phone || !wsSettings.apikey) {
+    if (!wsSettings.phone) {
       setShowWsPanel(true)
       return
     }
@@ -160,7 +160,7 @@ export function TasksPanel() {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: wsSettings.phone, apikey: wsSettings.apikey, message }),
+        body: JSON.stringify({ phone: wsSettings.phone, message }),
       })
       const data = await res.json().catch(() => ({ message: 'Error al enviar' })) as { message?: string; ok?: boolean; detail?: string }
       if (!res.ok) throw new Error(data.message ?? 'Error al enviar')
@@ -219,7 +219,7 @@ export function TasksPanel() {
                 Ejecutar todas
               </button>
             )}
-            {(wsSettings.phone && wsSettings.apikey) && (
+            {wsSettings.phone && (
               <button
                 onClick={sendTestWhatsApp}
                 disabled={wsSending}
@@ -279,27 +279,16 @@ export function TasksPanel() {
               <li>Usá <em>Test WS</em> para verificar. Si no llega, revisá <strong>Solicitudes de mensajes</strong> en WS (ícono de chat → tres puntos → Solicitudes de mensajes).</li>
               <li>Esperá al menos 1 minuto entre envíos (límite de CallMeBot).</li>
             </ol>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Tu número (con código país)</label>
-                <input
-                  type="tel"
-                  value={wsSettings.phone}
-                  onChange={e => setWsSettings(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+5493425112970"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">API Key</label>
-                <input
-                  type="text"
-                  value={wsSettings.apikey}
-                  onChange={e => setWsSettings(prev => ({ ...prev, apikey: e.target.value }))}
-                  placeholder="123456"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
-              </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Tu número de WhatsApp (con código país)</label>
+              <input
+                type="tel"
+                value={wsSettings.phone}
+                onChange={e => setWsSettings(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="+5493425112970"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+              <p className="text-xs text-green-600 mt-1">La API key se configura en el servidor (variable de entorno CALLMEBOT_API_KEY).</p>
             </div>
             <button
               onClick={() => { saveWsSettings(wsSettings); setShowWsPanel(false) }}
