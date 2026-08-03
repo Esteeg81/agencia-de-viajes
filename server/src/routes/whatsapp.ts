@@ -15,8 +15,9 @@ router.post('/send', async (req, res) => {
     const r = await fetch(url)
     const body = await r.text()
 
-    // CallMeBot returns HTTP 200 even on errors — must check body text too
-    const isError = !r.ok || /error|invalid|unauthorized|not found/i.test(body)
+    // CallMeBot echoes "Message to: ..." on success (sometimes with non-200 status)
+    const isSuccess = /message to:/i.test(body)
+    const isError = !isSuccess && (!r.ok || /error|invalid|unauthorized|not found/i.test(body))
     if (isError) {
       res.status(502).json({ message: `CallMeBot: ${body.slice(0, 200)}` })
       return
