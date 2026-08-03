@@ -124,12 +124,12 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Tabs */}
-        <div className="flex gap-2 bg-white rounded-2xl shadow-sm p-2 w-fit">
+        <div className="flex gap-1.5 bg-white rounded-2xl shadow-sm p-2 w-full">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setMode(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex flex-1 items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 mode === tab.id ? tab.activeColor : 'text-gray-500 hover:bg-gray-50'
               }`}
             >
