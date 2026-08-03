@@ -149,7 +149,7 @@ export function TasksPanel() {
     setRunningAll(false)
   }
 
-  async function sendWhatsApp() {
+  async function doSend(message: string) {
     if (!wsSettings.phone || !wsSettings.apikey) {
       setShowWsPanel(true)
       return
@@ -157,24 +157,26 @@ export function TasksPanel() {
     setWsSending(true)
     setWsFeedback(null)
     try {
-      const message = buildWsMessage(tasks)
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: wsSettings.phone, apikey: wsSettings.apikey, message }),
       })
       const data = await res.json().catch(() => ({ message: 'Error al enviar' })) as { message?: string; ok?: boolean; detail?: string }
-      if (!res.ok) {
-        throw new Error(data.message ?? 'Error al enviar')
-      }
-      const detail = data.detail ? ` · ${data.detail}` : ''
-      setWsFeedback({ ok: true, msg: `Informe enviado a tu WhatsApp${detail}` })
-      setTimeout(() => setWsFeedback(null), 8000)
+      if (!res.ok) throw new Error(data.message ?? 'Error al enviar')
+      setWsFeedback({ ok: true, msg: 'Mensaje enviado · Si no llega, revisá "Solicitudes de mensajes" en WhatsApp o esperá 1 min (límite CallMeBot).' })
+      setTimeout(() => setWsFeedback(null), 12000)
     } catch (e) {
       setWsFeedback({ ok: false, msg: e instanceof Error ? e.message : 'Error al enviar' })
     } finally {
       setWsSending(false)
     }
+  }
+
+  function sendWhatsApp() { doSend(buildWsMessage(tasks)) }
+
+  function sendTestWhatsApp() {
+    doSend('*Agencia de Viajes* · Mensaje de prueba ✓')
   }
 
   function handleSave(task: ScheduledTask) {
@@ -215,6 +217,17 @@ export function TasksPanel() {
               >
                 {runningAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 Ejecutar todas
+              </button>
+            )}
+            {(wsSettings.phone && wsSettings.apikey) && (
+              <button
+                onClick={sendTestWhatsApp}
+                disabled={wsSending}
+                title="Enviar mensaje de prueba corto para verificar la conexión"
+                className="flex items-center gap-1.5 px-3 py-2 border border-green-400 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors disabled:opacity-60"
+              >
+                {wsSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                Test WS
               </button>
             )}
             {tasksWithResults.length > 0 && (
@@ -260,10 +273,12 @@ export function TasksPanel() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-green-700 leading-relaxed">
-              Mandá el mensaje <strong>"I allow callmebot to send me messages"</strong> por WhatsApp al número{' '}
-              <strong>+34 644 55 60 77</strong>. Te van a responder con tu API key.
-            </p>
+            <ol className="text-xs text-green-700 leading-relaxed space-y-1 list-decimal list-inside">
+              <li>Mandá <strong>"I allow callmebot to send me messages"</strong> por WS al <strong>+34 644 55 60 77</strong>. Te responden con tu API key.</li>
+              <li>Ingresá tu número y la key abajo y guardá.</li>
+              <li>Usá <em>Test WS</em> para verificar. Si no llega, revisá <strong>Solicitudes de mensajes</strong> en WS (ícono de chat → tres puntos → Solicitudes de mensajes).</li>
+              <li>Esperá al menos 1 minuto entre envíos (límite de CallMeBot).</li>
+            </ol>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Tu número (con código país)</label>
@@ -271,7 +286,7 @@ export function TasksPanel() {
                   type="tel"
                   value={wsSettings.phone}
                   onChange={e => setWsSettings(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+5491112345678"
+                  placeholder="+5493425112970"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
               </div>
