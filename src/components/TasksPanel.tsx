@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import {
   Plus, Play, MessageCircle, Trash2, Edit3, Hotel, Plane,
-  Settings, CheckCircle, AlertCircle, Loader2, RefreshCw, X,
+  CheckCircle, AlertCircle, Loader2, RefreshCw,
 } from 'lucide-react'
-import type { ScheduledTask, HotelTask, FlightTask, WsSettings } from '../types/tasks'
-import { getTasks, saveTasks, getWsSettings, saveWsSettings } from '../lib/tasksStore'
+import type { ScheduledTask, HotelTask, FlightTask } from '../types/tasks'
+import { getTasks, saveTasks } from '../lib/tasksStore'
 import { searchHotels } from '../lib/hotelsApi'
 import { searchFlights } from '../lib/api'
 import { TaskModal } from './TaskModal'
@@ -51,9 +51,6 @@ export function TasksPanel() {
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState<ScheduledTask | undefined>()
   const [runningAll, setRunningAll] = useState(false)
-
-  const [wsSettings, setWsSettings] = useState<WsSettings>(() => getWsSettings() ?? { phone: '' })
-  const [showWsPanel, setShowWsPanel] = useState(false)
   const [wsSending, setWsSending] = useState(false)
   const [wsFeedback, setWsFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
 
@@ -150,22 +147,18 @@ export function TasksPanel() {
   }
 
   async function doSend(message: string) {
-    if (!wsSettings.phone) {
-      setShowWsPanel(true)
-      return
-    }
     setWsSending(true)
     setWsFeedback(null)
     try {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: wsSettings.phone, message }),
+        body: JSON.stringify({ message }),
       })
-      const data = await res.json().catch(() => ({ message: 'Error al enviar' })) as { message?: string; ok?: boolean; detail?: string }
+      const data = await res.json().catch(() => ({ message: 'Error al enviar' })) as { message?: string; ok?: boolean }
       if (!res.ok) throw new Error(data.message ?? 'Error al enviar')
-      setWsFeedback({ ok: true, msg: 'Mensaje enviado · Si no llega, revisá "Solicitudes de mensajes" en WhatsApp o esperá 1 min (límite CallMeBot).' })
-      setTimeout(() => setWsFeedback(null), 12000)
+      setWsFeedback({ ok: true, msg: 'Mensaje enviado a WhatsApp.' })
+      setTimeout(() => setWsFeedback(null), 8000)
     } catch (e) {
       setWsFeedback({ ok: false, msg: e instanceof Error ? e.message : 'Error al enviar' })
     } finally {
@@ -174,10 +167,7 @@ export function TasksPanel() {
   }
 
   function sendWhatsApp() { doSend(buildWsMessage(tasks)) }
-
-  function sendTestWhatsApp() {
-    doSend('*Agencia de Viajes* · Mensaje de prueba ✓')
-  }
+  function sendTestWhatsApp() { doSend('*Agencia de Viajes* · Mensaje de prueba ✓') }
 
   function handleSave(task: ScheduledTask) {
     if (editingTask) {
@@ -219,17 +209,15 @@ export function TasksPanel() {
                 Ejecutar todas
               </button>
             )}
-            {wsSettings.phone && (
-              <button
-                onClick={sendTestWhatsApp}
-                disabled={wsSending}
-                title="Enviar mensaje de prueba corto para verificar la conexión"
-                className="flex items-center gap-1.5 px-3 py-2 border border-green-400 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors disabled:opacity-60"
-              >
-                {wsSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-                Test WS
-              </button>
-            )}
+            <button
+              onClick={sendTestWhatsApp}
+              disabled={wsSending}
+              title="Enviar mensaje de prueba"
+              className="flex items-center gap-1.5 px-3 py-2 border border-green-400 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors disabled:opacity-60"
+            >
+              {wsSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+              Test WS
+            </button>
             {tasksWithResults.length > 0 && (
               <button
                 onClick={sendWhatsApp}
@@ -240,62 +228,15 @@ export function TasksPanel() {
                 Enviar informe WS
               </button>
             )}
-            <button
-              onClick={() => setShowWsPanel(!showWsPanel)}
-              title="Configurar WhatsApp"
-              className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm font-semibold transition-colors ${
-                showWsPanel ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
-        {/* Feedback WS */}
         {wsFeedback && (
           <div className={`mt-3 flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${
             wsFeedback.ok ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-600'
           }`}>
             {wsFeedback.ok ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
             {wsFeedback.msg}
-          </div>
-        )}
-
-        {/* Panel WhatsApp */}
-        {showWsPanel && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-green-800 flex items-center gap-1.5">
-                <MessageCircle className="w-3.5 h-3.5" /> Configuración WhatsApp (CallMeBot — gratis)
-              </p>
-              <button onClick={() => setShowWsPanel(false)} className="text-green-600 hover:text-green-800">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ol className="text-xs text-green-700 leading-relaxed space-y-1 list-decimal list-inside">
-              <li>Mandá <strong>"I allow callmebot to send me messages"</strong> por WS al <strong>+34 644 55 60 77</strong>. Te responden con tu API key.</li>
-              <li>Ingresá tu número y la key abajo y guardá.</li>
-              <li>Usá <em>Test WS</em> para verificar. Si no llega, revisá <strong>Solicitudes de mensajes</strong> en WS (ícono de chat → tres puntos → Solicitudes de mensajes).</li>
-              <li>Esperá al menos 1 minuto entre envíos (límite de CallMeBot).</li>
-            </ol>
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Tu número de WhatsApp (con código país)</label>
-              <input
-                type="tel"
-                value={wsSettings.phone}
-                onChange={e => setWsSettings(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+5493425112970"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-              />
-              <p className="text-xs text-green-600 mt-1">La API key se configura en el servidor (variable de entorno CALLMEBOT_API_KEY).</p>
-            </div>
-            <button
-              onClick={() => { saveWsSettings(wsSettings); setShowWsPanel(false) }}
-              className="w-full bg-green-600 text-white rounded-lg py-2 text-sm font-semibold hover:bg-green-700 transition-colors"
-            >
-              Guardar configuración
-            </button>
           </div>
         )}
       </div>
@@ -371,14 +312,12 @@ export function TasksPanel() {
                 </div>
               </div>
 
-              {/* Error */}
               {isError && (
                 <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {st.error}
                 </div>
               )}
 
-              {/* Último resultado */}
               {task.lastResult && (
                 <div className={`mt-3 rounded-lg px-3 py-2.5 ${accentBg}`}>
                   {task.type === 'hotel' && (

@@ -3,16 +3,17 @@ import { Router } from 'express'
 const router = Router()
 
 router.post('/send', async (req, res) => {
-  const { phone, message } = req.body as { phone?: string; message?: string }
+  const { message } = req.body as { message?: string }
   const apikey = process.env.CALLMEBOT_API_KEY
+  const phone  = process.env.WHATSAPP_ADMIN_PHONE
 
-  if (!phone || !message) {
-    res.status(400).json({ message: 'Faltan parámetros: phone, message' })
+  if (!message) {
+    res.status(400).json({ message: 'Falta el mensaje' })
     return
   }
 
-  if (!apikey) {
-    res.status(500).json({ message: 'CALLMEBOT_API_KEY no configurada en el servidor' })
+  if (!apikey || !phone) {
+    res.status(500).json({ message: 'CALLMEBOT_API_KEY o WHATSAPP_ADMIN_PHONE no configuradas en el servidor' })
     return
   }
 

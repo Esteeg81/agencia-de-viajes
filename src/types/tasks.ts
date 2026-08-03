@@ -47,6 +47,3 @@ export type FlightTask = {
 
 export type ScheduledTask = HotelTask | FlightTask
 
-export type WsSettings = {
-  phone: string
-}
