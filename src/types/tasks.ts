@@ -23,6 +23,7 @@ export type HotelTask = {
   checkOutDate: string
   nights: number
   adults: number
+  children: number[]
   allInclusive: boolean
   lastRun?: string
   lastResult?: HotelTaskResult

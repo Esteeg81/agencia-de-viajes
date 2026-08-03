@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Plane, Hotel } from 'lucide-react'
+import { X, Plane, Hotel, Plus } from 'lucide-react'
 import { ORIGINS, PASSENGER_OPTIONS } from '../types/travel'
 import type { PassengerOption } from '../types/travel'
 import type { ScheduledTask, HotelTask, FlightTask } from '../types/tasks'
@@ -35,6 +35,7 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
   const [checkIn, setCheckIn] = useState(editing?.type === 'hotel' ? editing.checkInDate : addDays(today, 1))
   const [nights, setNights] = useState(editing?.type === 'hotel' ? editing.nights : 7)
   const [adults, setAdults] = useState(editing?.type === 'hotel' ? editing.adults : 2)
+  const [children, setChildren] = useState<number[]>(editing?.type === 'hotel' ? editing.children : [])
   const [allInclusive, setAllInclusive] = useState(editing?.type === 'hotel' ? editing.allInclusive : false)
 
   // Flight state
@@ -74,6 +75,7 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
         checkOutDate: checkOut,
         nights,
         adults,
+        children,
         allInclusive,
         lastRun: editing?.lastRun,
         lastResult: editing?.type === 'hotel' ? editing.lastResult : undefined,
@@ -230,6 +232,50 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
                     />
                     <span className="text-sm text-gray-700">All Inclusive</span>
                   </label>
+                </div>
+              </div>
+
+              {/* Niños */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Niños ({children.length})
+                  </label>
+                  {children.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={() => setChildren([...children, 5])}
+                      className="flex items-center gap-1 text-xs font-semibold text-amber-600 border border-amber-300 hover:bg-amber-50 px-2.5 py-1 rounded-full transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Agregar niño
+                    </button>
+                  )}
+                </div>
+                {children.length === 0 && (
+                  <p className="text-xs text-gray-400">Sin niños — tocá "Agregar niño" para incluirlos</p>
+                )}
+                <div className="space-y-2">
+                  {children.map((age, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      <span className="text-xs text-amber-700 font-medium w-16 shrink-0">Niño {idx + 1}</span>
+                      <select
+                        value={age}
+                        onChange={e => setChildren(children.map((a, i) => i === idx ? Number(e.target.value) : a))}
+                        className="flex-1 border border-amber-200 bg-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      >
+                        {Array.from({ length: 18 }, (_, i) => i).map(a => (
+                          <option key={a} value={a}>{a === 0 ? 'Menos de 1 año' : `${a} año${a !== 1 ? 's' : ''}`}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setChildren(children.filter((_, i) => i !== idx))}
+                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
