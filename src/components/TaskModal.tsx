@@ -55,6 +55,12 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
     editing?.type === 'flight' ? editing.passengers : '2_adults'
   )
 
+  const [hotelTarget, setHotelTarget] = useState<string>(
+    editing?.type === 'hotel' && editing.targetPrice ? String(editing.targetPrice) : ''
+  )
+  const [flightTarget, setFlightTarget] = useState<string>(
+    editing?.type === 'flight' && editing.targetPrice ? String(editing.targetPrice) : ''
+  )
   const [error, setError] = useState('')
 
   const checkOut = addDays(checkIn, nights)
@@ -77,6 +83,8 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
         adults,
         children,
         allInclusive,
+        targetPrice: hotelTarget ? Number(hotelTarget) : undefined,
+        priceHistory: editing?.priceHistory,
         lastRun: editing?.lastRun,
         lastResult: editing?.type === 'hotel' ? editing.lastResult : undefined,
       }
@@ -98,6 +106,8 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
         returnTo: tripType === 'roundtrip' ? retTo : undefined,
         passengers,
         tripType,
+        targetPrice: flightTarget ? Number(flightTarget) : undefined,
+        priceHistory: editing?.priceHistory,
         lastRun: editing?.lastRun,
         lastResult: editing?.type === 'flight' ? editing.lastResult : undefined,
       }
@@ -233,6 +243,21 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
                     <span className="text-sm text-gray-700">All Inclusive</span>
                   </label>
                 </div>
+              </div>
+
+              {/* Precio objetivo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Precio objetivo (USD) <span className="text-gray-400 font-normal">— alerta si baja de este valor</span>
+                </label>
+                <input
+                  type="number"
+                  value={hotelTarget}
+                  onChange={e => setHotelTarget(e.target.value)}
+                  placeholder="Ej: 800"
+                  min={0}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
               </div>
 
               {/* Niños */}
@@ -397,6 +422,21 @@ export function TaskModal({ onSave, onClose, editing }: Props) {
                 >
                   {PASSENGER_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
+              </div>
+
+              {/* Precio objetivo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Precio objetivo (USD) <span className="text-gray-400 font-normal">— alerta si baja de este valor</span>
+                </label>
+                <input
+                  type="number"
+                  value={flightTarget}
+                  onChange={e => setFlightTarget(e.target.value)}
+                  placeholder="Ej: 1500"
+                  min={0}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
               </div>
             </>
           )}

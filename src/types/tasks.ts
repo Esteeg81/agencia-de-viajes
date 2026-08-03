@@ -1,5 +1,11 @@
 import type { PassengerOption } from './travel'
 
+export type PriceEntry = {
+  date: string   // ISO timestamp
+  price: number
+  count: number
+}
+
 export type HotelTaskResult = {
   hotelCount: number
   cheapestPrice?: string
@@ -25,6 +31,8 @@ export type HotelTask = {
   adults: number
   children: number[]
   allInclusive: boolean
+  targetPrice?: number
+  priceHistory?: PriceEntry[]
   lastRun?: string
   lastResult?: HotelTaskResult
 }
@@ -41,9 +49,10 @@ export type FlightTask = {
   returnTo?: string
   passengers: PassengerOption
   tripType: 'roundtrip' | 'oneway'
+  targetPrice?: number
+  priceHistory?: PriceEntry[]
   lastRun?: string
   lastResult?: FlightTaskResult
 }
 
 export type ScheduledTask = HotelTask | FlightTask
-

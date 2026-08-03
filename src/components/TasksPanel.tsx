@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import {
   Plus, Play, MessageCircle, Trash2, Edit3, Hotel, Plane,
-  CheckCircle, AlertCircle, Loader2, RefreshCw,
+  CheckCircle, AlertCircle, Loader2, RefreshCw, TrendingDown, TrendingUp,
 } from 'lucide-react'
-import type { ScheduledTask, HotelTask, FlightTask } from '../types/tasks'
+import type { ScheduledTask, HotelTask, FlightTask, PriceEntry } from '../types/tasks'
 import { getTasks, saveTasks } from '../lib/tasksStore'
 import { searchHotels } from '../lib/hotelsApi'
 import { searchFlights } from '../lib/api'
@@ -15,12 +15,25 @@ function money(amount: string, currency: string) {
   return `${currency} ${Number(amount).toLocaleString('es-AR')}`
 }
 
+function getTrend(history: PriceEntry[] | undefined): { pct: number; diff: number } | null {
+  if (!history || history.length < 2) return null
+  const prev = history[history.length - 2].price
+  const curr = history[history.length - 1].price
+  if (prev === 0) return null
+  const pct = Math.round(((curr - prev) / prev) * 100)
+  return { pct, diff: curr - prev }
+}
+
+function appendHistory(existing: PriceEntry[] | undefined, price: number, count: number): PriceEntry[] {
+  const entry: PriceEntry = { date: new Date().toISOString(), price, count }
+  return [...(existing ?? []), entry].slice(-10)
+}
+
 function buildWsMessage(tasks: ScheduledTask[]): string {
   const date = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
   const lines: string[] = [`*Informe viajes ${date}*`, '']
 
   const withResults = tasks.filter(t => t.lastResult)
-
   const hotels = withResults.filter(t => t.type === 'hotel') as HotelTask[]
   const flights = withResults.filter(t => t.type === 'flight') as FlightTask[]
 
@@ -28,9 +41,12 @@ function buildWsMessage(tasks: ScheduledTask[]): string {
     lines.push('*Hoteles:*')
     for (const t of hotels) {
       const r = t.lastResult!
+      const tr = getTrend(t.priceHistory)
+      const trStr = tr ? (tr.pct < 0 ? ` ↓${Math.abs(tr.pct)}%` : tr.pct > 0 ? ` ↑${tr.pct}%` : '') : ''
+      const flag = t.targetPrice && r.cheapestPrice && Number(r.cheapestPrice) <= t.targetPrice ? '🎯 ' : ''
       if (r.hotelCount > 0) {
-        const name = r.cheapestName ? ` · ${r.cheapestName.slice(0, 20)}` : ''
-        lines.push(`${t.name}: ${money(r.cheapestPrice!, r.currency!)} (${r.hotelCount})${name}`)
+        const name = r.cheapestName ? ` · ${r.cheapestName.slice(0, 18)}` : ''
+        lines.push(`${flag}${t.name}: ${money(r.cheapestPrice!, r.currency!)} (${r.hotelCount})${trStr}${name}`)
       } else {
         lines.push(`${t.name}: sin resultados`)
       }
@@ -42,9 +58,12 @@ function buildWsMessage(tasks: ScheduledTask[]): string {
     lines.push('*Vuelos:*')
     for (const t of flights) {
       const r = t.lastResult!
+      const tr = getTrend(t.priceHistory)
+      const trStr = tr ? (tr.pct < 0 ? ` ↓${Math.abs(tr.pct)}%` : tr.pct > 0 ? ` ↑${tr.pct}%` : '') : ''
+      const flag = t.targetPrice && r.cheapestPrice && Number(r.cheapestPrice) <= t.targetPrice ? '🎯 ' : ''
       if (r.flightCount > 0) {
-        const date = r.cheapestDate ? ` · ${r.cheapestDate}` : ''
-        lines.push(`${t.origin}>${t.destination} ${t.name}: ${money(r.cheapestPrice!, r.currency!)} (${r.flightCount})${date}`)
+        const dateStr = r.cheapestDate ? ` · ${r.cheapestDate}` : ''
+        lines.push(`${flag}${t.origin}>${t.destination} ${t.name}: ${money(r.cheapestPrice!, r.currency!)} (${r.flightCount})${trStr}${dateStr}`)
       } else {
         lines.push(`${t.origin}>${t.destination} ${t.name}: sin resultados`)
       }
@@ -54,6 +73,15 @@ function buildWsMessage(tasks: ScheduledTask[]): string {
 
   lines.push('_Agencia de Viajes_')
   return lines.join('\n')
+}
+
+function buildAlertMessage(task: ScheduledTask): string {
+  const price = task.lastResult?.cheapestPrice
+  const target = task.targetPrice
+  if (task.type === 'hotel') {
+    return `🎯 *Alerta de precio!*\n${task.name} (${task.destination})\nPrecio: USD ${price} — bajo tu objetivo de USD ${target}\n_Agencia de Viajes_`
+  }
+  return `🎯 *Alerta de precio!*\n${task.name} (${task.origin} → ${task.destination})\nPrecio: USD ${price} — bajo tu objetivo de USD ${target}\n_Agencia de Viajes_`
 }
 
 export function TasksPanel() {
@@ -74,9 +102,30 @@ export function TasksPanel() {
     setRunState(prev => ({ ...prev, [id]: state }))
   }
 
+  async function sendWs(message: string) {
+    setWsSending(true)
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      })
+      const data = await res.json().catch(() => ({})) as { message?: string }
+      if (!res.ok) throw new Error(data.message ?? 'Error al enviar')
+      setWsFeedback({ ok: true, msg: 'Enviado a WhatsApp.' })
+      setTimeout(() => setWsFeedback(null), 6000)
+    } catch (e) {
+      setWsFeedback({ ok: false, msg: e instanceof Error ? e.message : 'Error al enviar' })
+    } finally {
+      setWsSending(false)
+    }
+  }
+
   async function runOne(task: ScheduledTask): Promise<ScheduledTask> {
     setRun(task.id, { status: 'running' })
     try {
+      let updated: ScheduledTask
+
       if (task.type === 'hotel') {
         const result = await searchHotels({
           destination: task.destination,
@@ -88,7 +137,8 @@ export function TasksPanel() {
           rooms: 1,
           allInclusive: task.allInclusive,
         })
-        const updated: HotelTask = {
+        const currentPrice = result.cheapest ? Number(result.cheapest.price.total) : 0
+        updated = {
           ...task,
           lastRun: new Date().toISOString(),
           lastResult: {
@@ -97,9 +147,8 @@ export function TasksPanel() {
             currency: result.currency,
             cheapestName: result.cheapest?.hotelName,
           },
-        }
-        setRun(task.id, { status: 'done' })
-        return updated
+          priceHistory: appendHistory(task.priceHistory, currentPrice, result.offers.length),
+        } as HotelTask
       } else {
         const result = await searchFlights({
           origin: task.origin,
@@ -115,7 +164,8 @@ export function TasksPanel() {
         const cheapestDate = seg
           ? new Date(seg).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
           : undefined
-        const updated: FlightTask = {
+        const currentPrice = result.cheapest ? Number(result.cheapest.price.total) : 0
+        updated = {
           ...task,
           lastRun: new Date().toISOString(),
           lastResult: {
@@ -124,10 +174,23 @@ export function TasksPanel() {
             currency: result.currency,
             cheapestDate,
           },
-        }
-        setRun(task.id, { status: 'done' })
-        return updated
+          priceHistory: appendHistory(task.priceHistory, currentPrice, result.offers.length),
+        } as FlightTask
       }
+
+      setRun(task.id, { status: 'done' })
+
+      // Auto-alert if price crossed target
+      if (
+        updated.targetPrice &&
+        updated.lastResult?.cheapestPrice &&
+        Number(updated.lastResult.cheapestPrice) > 0 &&
+        Number(updated.lastResult.cheapestPrice) <= updated.targetPrice
+      ) {
+        sendWs(buildAlertMessage(updated))
+      }
+
+      return updated
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Error desconocido'
       setRun(task.id, { status: 'error', error })
@@ -157,29 +220,6 @@ export function TasksPanel() {
     setRunningAll(false)
   }
 
-  async function doSend(message: string) {
-    setWsSending(true)
-    setWsFeedback(null)
-    try {
-      const res = await fetch('/api/whatsapp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      })
-      const data = await res.json().catch(() => ({ message: 'Error al enviar' })) as { message?: string; ok?: boolean }
-      if (!res.ok) throw new Error(data.message ?? 'Error al enviar')
-      setWsFeedback({ ok: true, msg: 'Mensaje enviado a WhatsApp.' })
-      setTimeout(() => setWsFeedback(null), 8000)
-    } catch (e) {
-      setWsFeedback({ ok: false, msg: e instanceof Error ? e.message : 'Error al enviar' })
-    } finally {
-      setWsSending(false)
-    }
-  }
-
-  function sendWhatsApp() { doSend(buildWsMessage(tasks)) }
-  function sendTestWhatsApp() { doSend('*Agencia de Viajes* · Mensaje de prueba ✓') }
-
   function handleSave(task: ScheduledTask) {
     if (editingTask) {
       sync(tasks.map(t => t.id === task.id ? task : t))
@@ -200,7 +240,7 @@ export function TasksPanel() {
           <div>
             <h2 className="text-base font-bold text-gray-800">Tareas programadas</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              {tasks.length} tarea{tasks.length !== 1 ? 's' : ''} · al ejecutar se actualiza el informe
+              {tasks.length} tarea{tasks.length !== 1 ? 's' : ''} · informe diario automático a las 08:00 ART
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -220,18 +260,9 @@ export function TasksPanel() {
                 Ejecutar todas
               </button>
             )}
-            <button
-              onClick={sendTestWhatsApp}
-              disabled={wsSending}
-              title="Enviar mensaje de prueba"
-              className="flex items-center gap-1.5 px-3 py-2 border border-green-400 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors disabled:opacity-60"
-            >
-              {wsSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-              Test WS
-            </button>
             {tasksWithResults.length > 0 && (
               <button
-                onClick={sendWhatsApp}
+                onClick={() => sendWs(buildWsMessage(tasks))}
                 disabled={wsSending}
                 className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-60"
               >
@@ -252,7 +283,6 @@ export function TasksPanel() {
         )}
       </div>
 
-      {/* Estado vacío */}
       {tasks.length === 0 && (
         <div className="text-center py-16 text-gray-400">
           <div className="text-5xl mb-4">📋</div>
@@ -267,15 +297,21 @@ export function TasksPanel() {
         </div>
       )}
 
-      {/* Lista de tareas */}
       <div className="space-y-3">
         {tasks.map(task => {
           const st = runState[task.id]
           const isRunning = st?.status === 'running'
           const isError = st?.status === 'error'
           const isHotel = task.type === 'hotel'
-          const borderColor = task.lastResult ? (isHotel ? 'border-amber-300' : 'border-blue-300') : 'border-gray-100'
-          const accentBg = isHotel ? 'bg-amber-50' : 'bg-blue-50'
+          const tr = getTrend(task.priceHistory)
+          const currentPrice = task.lastResult?.cheapestPrice ? Number(task.lastResult.cheapestPrice) : null
+          const hitTarget = !!(task.targetPrice && currentPrice && currentPrice <= task.targetPrice)
+          const borderColor = hitTarget
+            ? 'border-green-400'
+            : task.lastResult
+            ? (isHotel ? 'border-amber-300' : 'border-blue-300')
+            : 'border-gray-100'
+          const accentBg   = isHotel ? 'bg-amber-50' : 'bg-blue-50'
           const accentText = isHotel ? 'text-amber-700' : 'text-blue-700'
           const accentIcon = isHotel ? 'text-amber-600' : 'text-blue-600'
 
@@ -289,7 +325,17 @@ export function TasksPanel() {
                       : <Plane className={`w-4 h-4 ${accentIcon}`} />}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-800 text-sm truncate">{task.name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-gray-800 text-sm truncate">{task.name}</p>
+                      {hitTarget && (
+                        <span className="text-xs bg-green-100 text-green-700 border border-green-300 px-2 py-0.5 rounded-full font-semibold shrink-0">
+                          🎯 Bajo objetivo
+                        </span>
+                      )}
+                      {task.targetPrice && !hitTarget && (
+                        <span className="text-xs text-gray-400 shrink-0">objetivo: USD {task.targetPrice.toLocaleString('es-AR')}</span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 truncate mt-0.5">
                       {task.type === 'hotel'
                         ? `${task.destination} · ${task.checkInDate} · ${task.nights}n · ${task.adults} adulto${task.adults > 1 ? 's' : ''}${task.allInclusive ? ' · AI' : ''}`
@@ -298,26 +344,16 @@ export function TasksPanel() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => runTaskAndSync(task)}
-                    disabled={isRunning}
-                    title="Ejecutar ahora"
-                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40"
-                  >
+                  <button onClick={() => runTaskAndSync(task)} disabled={isRunning} title="Ejecutar ahora"
+                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40">
                     {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   </button>
-                  <button
-                    onClick={() => { setEditingTask(task); setShowModal(true) }}
-                    title="Editar"
-                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
+                  <button onClick={() => { setEditingTask(task); setShowModal(true) }} title="Editar"
+                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                     <Edit3 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => sync(tasks.filter(t => t.id !== task.id))}
-                    title="Eliminar"
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
+                  <button onClick={() => sync(tasks.filter(t => t.id !== task.id))} title="Eliminar"
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -331,40 +367,50 @@ export function TasksPanel() {
 
               {task.lastResult && (
                 <div className={`mt-3 rounded-lg px-3 py-2.5 ${accentBg}`}>
-                  {task.type === 'hotel' && (
-                    <div className={`text-xs ${accentText} flex items-start gap-1.5`}>
+                  <div className={`text-xs ${accentText} flex items-start justify-between gap-2`}>
+                    <div className="flex items-start gap-1.5">
                       <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                       <span>
-                        {task.lastResult.hotelCount > 0
-                          ? <>
-                              <strong>{task.lastResult.hotelCount}</strong> hoteles · Desde{' '}
-                              <strong>{money(task.lastResult.cheapestPrice!, task.lastResult.currency!)}</strong>
-                              {task.lastResult.cheapestName && <> · {task.lastResult.cheapestName}</>}
-                            </>
-                          : 'Sin resultados para esas fechas'}
+                        {task.type === 'hotel' && task.lastResult.hotelCount > 0 && (
+                          <>
+                            <strong>{task.lastResult.hotelCount}</strong> hoteles · Desde{' '}
+                            <strong>{money(task.lastResult.cheapestPrice!, task.lastResult.currency!)}</strong>
+                            {task.lastResult.cheapestName && <> · {task.lastResult.cheapestName}</>}
+                          </>
+                        )}
+                        {task.type === 'hotel' && task.lastResult.hotelCount === 0 && 'Sin resultados para esas fechas'}
+                        {task.type === 'flight' && task.lastResult.flightCount > 0 && (
+                          <>
+                            <strong>{task.lastResult.flightCount}</strong> vuelos · Desde{' '}
+                            <strong>{money(task.lastResult.cheapestPrice!, task.lastResult.currency!)}</strong>
+                            {task.lastResult.cheapestDate && <> · {task.lastResult.cheapestDate}</>}
+                          </>
+                        )}
+                        {task.type === 'flight' && task.lastResult.flightCount === 0 && 'Sin resultados para esas fechas'}
                       </span>
                     </div>
-                  )}
-                  {task.type === 'flight' && (
-                    <div className={`text-xs ${accentText} flex items-start gap-1.5`}>
-                      <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                      <span>
-                        {task.lastResult.flightCount > 0
-                          ? <>
-                              <strong>{task.lastResult.flightCount}</strong> vuelos · Desde{' '}
-                              <strong>{money(task.lastResult.cheapestPrice!, task.lastResult.currency!)}</strong>
-                              {task.lastResult.cheapestDate && <> · Salida más barata: {task.lastResult.cheapestDate}</>}
-                            </>
-                          : 'Sin resultados para esas fechas'}
+
+                    {/* Trend badge */}
+                    {tr && tr.pct !== 0 && (
+                      <span className={`flex items-center gap-0.5 shrink-0 font-semibold text-xs px-1.5 py-0.5 rounded-full ${
+                        tr.pct < 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                      }`}>
+                        {tr.pct < 0
+                          ? <TrendingDown className="w-3 h-3" />
+                          : <TrendingUp className="w-3 h-3" />}
+                        {Math.abs(tr.pct)}%
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
                   {task.lastRun && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Actualizado:{' '}
-                      {new Date(task.lastRun).toLocaleString('es-AR', {
+                      Actualizado: {new Date(task.lastRun).toLocaleString('es-AR', {
                         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                       })}
+                      {task.priceHistory && task.priceHistory.length > 1 && (
+                        <span className="ml-2 text-gray-300">· {task.priceHistory.length} mediciones</span>
+                      )}
                     </p>
                   )}
                 </div>

@@ -7,6 +7,8 @@ import flightsRouter from './routes/flights.js'
 import hotelsRouter from './routes/hotels.js'
 import transfersRouter from './routes/transfers.js'
 import whatsappRouter from './routes/whatsapp.js'
+import tasksRouter from './routes/tasks.js'
+import { startCron } from './lib/cron.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -19,12 +21,12 @@ app.use('/api/flights', flightsRouter)
 app.use('/api/hotels', hotelsRouter)
 app.use('/api/transfers', transfersRouter)
 app.use('/api/whatsapp', whatsappRouter)
+app.use('/api/tasks', tasksRouter)
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true })
 })
 
-// En producción servimos el frontend compilado
 if (isProd) {
   const __dirname = path.dirname(fileURLToPath(import.meta.url))
   const distPath = path.join(__dirname, '../../dist')
@@ -36,4 +38,5 @@ if (isProd) {
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`)
+  startCron()
 })

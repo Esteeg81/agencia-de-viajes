@@ -12,4 +12,13 @@ export function getTasks(): ScheduledTask[] {
 
 export function saveTasks(tasks: ScheduledTask[]): void {
   localStorage.setItem(TASKS_KEY, JSON.stringify(tasks))
+  syncToServer(tasks)
+}
+
+function syncToServer(tasks: ScheduledTask[]) {
+  fetch('/api/tasks/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tasks }),
+  }).catch(() => { /* server may be sleeping, ignore */ })
 }
