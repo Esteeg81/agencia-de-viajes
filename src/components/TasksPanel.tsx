@@ -16,32 +16,43 @@ function money(amount: string, currency: string) {
 }
 
 function buildWsMessage(tasks: ScheduledTask[]): string {
-  const date = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
-  const lines: string[] = [`*Informe de viajes - ${date}*`, '']
+  const date = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+  const lines: string[] = [`*Informe viajes ${date}*`, '']
 
-  for (const task of tasks) {
-    if (!task.lastResult) continue
-    if (task.type === 'hotel') {
-      lines.push(`*Hotel: ${task.name}* (${task.destination})`)
-      if (task.lastResult.hotelCount > 0) {
-        lines.push(`  Desde ${money(task.lastResult.cheapestPrice!, task.lastResult.currency!)} · ${task.lastResult.hotelCount} opciones`)
-        if (task.lastResult.cheapestName) lines.push(`  Mejor: ${task.lastResult.cheapestName}`)
+  const withResults = tasks.filter(t => t.lastResult)
+
+  const hotels = withResults.filter(t => t.type === 'hotel') as HotelTask[]
+  const flights = withResults.filter(t => t.type === 'flight') as FlightTask[]
+
+  if (hotels.length) {
+    lines.push('*Hoteles:*')
+    for (const t of hotels) {
+      const r = t.lastResult!
+      if (r.hotelCount > 0) {
+        const name = r.cheapestName ? ` · ${r.cheapestName.slice(0, 20)}` : ''
+        lines.push(`${t.name}: ${money(r.cheapestPrice!, r.currency!)} (${r.hotelCount})${name}`)
       } else {
-        lines.push('  Sin resultados disponibles')
-      }
-    } else {
-      lines.push(`*Vuelo: ${task.name}* (${task.origin} -> ${task.destination})`)
-      if (task.lastResult.flightCount > 0) {
-        lines.push(`  Desde ${money(task.lastResult.cheapestPrice!, task.lastResult.currency!)} · ${task.lastResult.flightCount} opciones`)
-        if (task.lastResult.cheapestDate) lines.push(`  Salida mas barata: ${task.lastResult.cheapestDate}`)
-      } else {
-        lines.push('  Sin resultados disponibles')
+        lines.push(`${t.name}: sin resultados`)
       }
     }
     lines.push('')
   }
 
-  lines.push('_Agencia de Viajes · Datos en tiempo real_')
+  if (flights.length) {
+    lines.push('*Vuelos:*')
+    for (const t of flights) {
+      const r = t.lastResult!
+      if (r.flightCount > 0) {
+        const date = r.cheapestDate ? ` · ${r.cheapestDate}` : ''
+        lines.push(`${t.origin}>${t.destination} ${t.name}: ${money(r.cheapestPrice!, r.currency!)} (${r.flightCount})${date}`)
+      } else {
+        lines.push(`${t.origin}>${t.destination} ${t.name}: sin resultados`)
+      }
+    }
+    lines.push('')
+  }
+
+  lines.push('_Agencia de Viajes_')
   return lines.join('\n')
 }
 
