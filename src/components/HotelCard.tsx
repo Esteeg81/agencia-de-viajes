@@ -118,14 +118,19 @@ export function HotelCard({ offer, isCheapest, onLinkToFlights }: Props) {
         </div>
 
         <div className="text-right shrink-0">
+          <div className="text-xs text-gray-400 mb-0.5">desde (ref.)</div>
           <div className="text-2xl font-bold text-gray-900">
             USD {Number(offer.price.total).toLocaleString('es-AR')}
           </div>
-          <div className="text-xs text-gray-400">precio total</div>
           <div className="text-sm text-amber-600 font-medium mt-1">
             USD {Number(offer.price.perNight).toLocaleString('es-AR')}
             <span className="text-xs text-gray-400 font-normal"> / noche</span>
           </div>
+          {offer.allInclusive && (
+            <div className="text-xs text-orange-500 mt-1 max-w-[120px] text-right leading-tight">
+              Precio AI puede diferir · verificar en el hotel
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -229,7 +229,7 @@ export default function App() {
       </main>
 
       <footer className="text-center py-6 text-xs text-gray-400 mt-8">
-        Datos en tiempo real via SerpAPI (Google Flights &amp; Google Hotels) · Verificá disponibilidad antes de reservar
+        Precios orientativos via Google Flights &amp; Google Hotels · Los paquetes Todo Incluido pueden tener precio diferente al mostrado · Verificá siempre en el hotel o agencia antes de reservar
       </footer>
     </div>
   )
