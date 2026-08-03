@@ -76,7 +76,7 @@ export function TasksPanel() {
           checkOutDate: task.checkOutDate,
           nights: task.nights,
           adults: task.adults,
-          children: task.children,
+          children: task.children ?? [],
           rooms: 1,
           allInclusive: task.allInclusive,
         })
