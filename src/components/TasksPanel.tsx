@@ -163,12 +163,13 @@ export function TasksPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: wsSettings.phone, apikey: wsSettings.apikey, message }),
       })
+      const data = await res.json().catch(() => ({ message: 'Error al enviar' })) as { message?: string; ok?: boolean; detail?: string }
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Error al enviar' }))
-        throw new Error((err as { message?: string }).message ?? 'Error al enviar')
+        throw new Error(data.message ?? 'Error al enviar')
       }
-      setWsFeedback({ ok: true, msg: 'Informe enviado a tu WhatsApp' })
-      setTimeout(() => setWsFeedback(null), 5000)
+      const detail = data.detail ? ` · ${data.detail}` : ''
+      setWsFeedback({ ok: true, msg: `Informe enviado a tu WhatsApp${detail}` })
+      setTimeout(() => setWsFeedback(null), 8000)
     } catch (e) {
       setWsFeedback({ ok: false, msg: e instanceof Error ? e.message : 'Error al enviar' })
     } finally {
